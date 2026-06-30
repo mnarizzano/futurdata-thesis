@@ -36,6 +36,8 @@ class AppController:
         self.arrow_mode = False
         self.connecting_from = None
         self.preview_line_id = None
+        self.auto_save_timer = None  
+        self.auto_save_delay = 200  
 
     def set_view(self, view):
         self.view = view
@@ -368,14 +370,29 @@ class AppController:
         weight_unit = shape.properties.get("weight_unit") or "g"
 
         if node_type == "Root":
-            comp_id = self.db.create_component(
-                name=name,
-                color_id=color_id,
-                material_id=material_id,
-                weight=weight,
-                weight_unit=weight_unit,
-                node_type="Root",
-            )
+            # Check if root component with this name already exists
+            existing = self._find_existing_root_component(name)
+            if existing:
+                # Update existing instead of creating new
+                comp_id = existing['id']
+                self.db.update_component(
+                    comp_id,
+                    name=name,
+                    color_id=color_id,
+                    material_id=material_id,
+                    weight=weight,
+                    weight_unit=weight_unit,
+                    node_type="Root"
+                )
+            else:
+                comp_id = self.db.create_component(
+                    name=name,
+                    color_id=color_id,
+                    material_id=material_id,
+                    weight=weight,
+                    weight_unit=weight_unit,
+                    node_type="Root",
+                )
         else:
             root_component_id = self._get_root_component_id()
             if root_component_id is None:
@@ -392,6 +409,20 @@ class AppController:
 
         shape.properties["db_id"] = comp_id
         return comp_id
+
+    def _find_existing_root_component(self, name: str) -> Optional[dict]:
+        """Check if a root component with the given name exists in database."""
+        try:
+            with self.db._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM root_component WHERE name = ?", (name,))
+                row = cursor.fetchone()
+                if row:
+                    return dict(row)
+                return None
+        except Exception as e:
+            print(f"[Save] Error checking for existing root component: {e}")
+            return None
 
     def _get_root_component_id(self) -> Optional[int]:
         for shape in self.diagram.shapes:
@@ -700,10 +731,20 @@ class AppController:
     def apply_properties(self, shape, old_properties, new_properties):
         command = EditShapePropertiesCommand(shape, old_properties, new_properties)
         self.command_history.execute(command)
-        self._persist_shape_properties(shape)
-        self.diagram.select_shape(shape, multi_select=False)
-        self._update_view()
-        self.view.set_status("Properties updated")
+        
+        # Check source: JSON or Database
+        if self.diagram.file_path and self.diagram.auto_sync_json:
+            # Loaded from JSON → Save to JSON only
+            self.diagram.select_shape(shape, multi_select=False)
+            self._update_view()
+            self.view.set_status("Properties updated (saving to JSON...)")
+            self._schedule_auto_save_json()
+        else:
+            # Loaded from Database → Save to Database only
+            self._persist_shape_properties(shape)
+            self.diagram.select_shape(shape, multi_select=False)
+            self._update_view()
+            self.view.set_status("Properties updated (saved to database)")
 
     def _persist_diagram_to_db(self):
         """Flush current in-memory shapes to DB before file save/export."""
@@ -715,12 +756,28 @@ class AppController:
             else:
                 others.append(shape)
 
+        # First, persist all shape properties
         for shape in roots + others:
             try:
                 self._persist_shape_properties(shape)
             except Exception:
                 # Keep file save resilient; DB sync for relationships is handled separately.
                 continue
+        
+        # Then, sync all connections to database
+        for conn in self.diagram.connections:
+            try:
+                self._sync_connection_to_db(conn.from_shape, conn.to_shape)
+            except Exception:
+                continue
+        
+        # Also sync arrow shapes (which represent connections)
+        for shape in self.diagram.shapes:
+            if isinstance(shape, ArrowShape):
+                try:
+                    self._sync_connection_to_db(shape.from_shape, shape.to_shape)
+                except Exception:
+                    continue
 
     def _persist_shape_properties(self, shape):
         """Persist edited shape properties to the backing database when possible."""
@@ -753,6 +810,7 @@ class AppController:
                 name=str(shape.name or shape.text or "").strip(),
                 description=str(shape.description or "").strip(),
                 tool_id=shape.tool_id or None,
+                image_path=str(shape.image_path or "").strip(),
             )
             shape.db_action_id = int(action_id)
 
@@ -825,7 +883,7 @@ class AppController:
             self.view.show_error("Error", "Failed to open file")
 
     def save_diagram(self):
-        """Save diagram to database only. Use Export for JSON."""
+        """Save diagram to database only (no JSON sync)."""
         try:
             # Save to database
             self._persist_diagram_to_db()
@@ -919,6 +977,45 @@ class AppController:
         self.view.refresh_properties_panel()
         self.view.set_status(f"Added new tool: {name}")
 
+    def _schedule_auto_save_json(self):
+        """Schedule auto-save to JSON with minimal debounce (0.2 second delay)."""
+        # Cancel existing timer if any
+        if self.auto_save_timer:
+            self.view.root.after_cancel(self.auto_save_timer)
+        
+        # Only auto-save if diagram was loaded from JSON and auto-sync is enabled
+        if self.diagram.file_path and self.diagram.auto_sync_json:
+            # Schedule new save after delay
+            self.auto_save_timer = self.view.root.after(
+                self.auto_save_delay, 
+                self._auto_save_to_json
+            )
+    
+    def _auto_save_to_json(self):
+        """Auto-save diagram to JSON file."""
+        if not self.diagram.file_path:
+            return
+        
+        try:
+            from datetime import datetime
+            
+            # Export to JSON with images
+            success = self.json_exporter.export_diagram(
+                self.diagram,
+                self.diagram.file_path,
+                self.current_product_id,
+                copy_images=True
+            )
+            
+            if success:
+                self.diagram.last_json_sync = datetime.now()
+                # Show brief notification
+                self.view.set_status(f"✓ Auto-saved to {os.path.basename(self.diagram.file_path)}")
+                # Clear status after 1.5 seconds
+                self.view.root.after(1500, lambda: self.view.set_status("Ready"))
+        except Exception:
+            pass
+
     def _update_view(self):
         self.view.canvas.redraw_all(self.diagram)
 
@@ -993,7 +1090,11 @@ class AppController:
             )
             
             if success:
-                self.view.set_status(f"Exported: {os.path.basename(file_path)}")
+                # Enable auto-sync for future edits
+                self.diagram.file_path = file_path
+                self.diagram.auto_sync_json = True
+                
+                self.view.set_status(f"✓ Exported: {os.path.basename(file_path)} (auto-sync enabled)")
             else:
                 self.view.show_error("Error", "Failed to export diagram")
                 
@@ -1014,6 +1115,8 @@ class AppController:
             
             if diagram:
                 self.diagram = diagram
+                self.diagram.file_path = file_path  # Track source JSON file
+                self.diagram.auto_sync_json = True  # Enable auto-sync
                 self.command_history.clear()
                 
                 # Sync to database
@@ -1029,7 +1132,7 @@ class AppController:
                 # Update canvas scroll region
                 self.view.canvas.update_scroll_region_from_shapes(self.diagram.shapes)
                 self._update_view()
-                self.view.set_status(f"Imported: {os.path.basename(file_path)}")
+                self.view.set_status(f"Imported: {os.path.basename(file_path)} (auto-sync enabled)")
             else:
                 self.view.show_error("Error", "Failed to import diagram")
                 
