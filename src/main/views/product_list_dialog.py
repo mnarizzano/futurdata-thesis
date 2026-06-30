@@ -49,7 +49,7 @@ class ProductListDialog:
         
         title_label = tk.Label(
             title_frame,
-            text="📦 Saved Products",
+            text="Saved Products",
             font=("Arial", 16, "bold"),
             bg="#2c3e50",
             fg="white"
@@ -81,7 +81,7 @@ class ProductListDialog:
         # Treeview
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("name", "brand", "model", "components", "steps", "modified"),
+            columns=("name", "brand", "model", "modified"),
             show="headings",
             yscrollcommand=vsb.set,
             xscrollcommand=hsb.set,
@@ -95,17 +95,13 @@ class ProductListDialog:
         self.tree.heading("name", text="Product Name", anchor=tk.W)
         self.tree.heading("brand", text="Brand", anchor=tk.W)
         self.tree.heading("model", text="Model", anchor=tk.W)
-        self.tree.heading("components", text="Components", anchor=tk.CENTER)
-        self.tree.heading("steps", text="Steps", anchor=tk.CENTER)
         self.tree.heading("modified", text="Last Modified", anchor=tk.W)
         
         # Column widths
-        self.tree.column("name", width=200)
-        self.tree.column("brand", width=120)
-        self.tree.column("model", width=100)
-        self.tree.column("components", width=100)
-        self.tree.column("steps", width=80)
-        self.tree.column("modified", width=150)
+        self.tree.column("name", width=250)
+        self.tree.column("brand", width=150)
+        self.tree.column("model", width=120)
+        self.tree.column("modified", width=180)
         
         # Grid layout
         self.tree.grid(row=0, column=0, sticky="nsew")
@@ -208,24 +204,6 @@ class ProductListDialog:
         
         # Add products
         for product in products:
-            # Get component and step counts
-            components = self.db.get_components_by_product(product['id'])
-            
-            # Count steps for this product (from root component)
-            steps_count = 0
-            try:
-                # This is a simplified count - you might want to count all steps recursively
-                conn = self.db._get_connection()
-                cursor = conn.__enter__().cursor()
-                cursor.execute(
-                    "SELECT COUNT(*) FROM disassembly_step WHERE input_root_component_id = ?",
-                    (product['id'],)
-                )
-                steps_count = cursor.fetchone()[0]
-                conn.__exit__(None, None, None)
-            except:
-                pass
-            
             # Format modified date
             modified = product.get('modified_at', '')
             if modified:
@@ -244,8 +222,6 @@ class ProductListDialog:
                     product.get('name', 'Untitled'),
                     product.get('brand', ''),
                     product.get('model', ''),
-                    len(components),
-                    steps_count,
                     modified
                 )
             )
