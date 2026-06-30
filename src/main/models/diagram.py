@@ -17,12 +17,14 @@ class Diagram:
             "product_name": "",
             "description": ""
         }
-        self.canvas_size = None  # Unlimited canvas - size determined dynamically
+        self.canvas_size = None  
         self.zoom_level = 1.0
         self.grid_enabled = True
         self.snap_to_grid = True
         self.modified = False
         self.file_path = None
+        self.auto_sync_json = True 
+        self.last_json_sync = None  
 
     def add_shape(self, shape: Shape):
         self.shapes.append(shape)
