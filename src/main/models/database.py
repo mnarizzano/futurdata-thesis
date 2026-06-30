@@ -94,6 +94,7 @@ class DatabaseManager:
                     name VARCHAR(255) NOT NULL,
                     description TEXT,
                     tool_id INTEGER,
+                    image_path VARCHAR(500),
                     FOREIGN KEY (tool_id) REFERENCES tool(id) ON DELETE SET NULL
                 )
             ''')
@@ -113,6 +114,7 @@ class DatabaseManager:
                     weight DECIMAL,
                     weight_unit VARCHAR(10) DEFAULT 'g',
                     node_type VARCHAR(20) DEFAULT 'Root',
+                    image_path VARCHAR(500),
                     FOREIGN KEY (color_id) REFERENCES color(id) ON DELETE SET NULL,
                     FOREIGN KEY (material_id) REFERENCES material(id) ON DELETE SET NULL
                 )
@@ -129,6 +131,7 @@ class DatabaseManager:
                     weight DECIMAL,
                     weight_unit VARCHAR(10) DEFAULT 'g',
                     node_type VARCHAR(20) DEFAULT 'Intermediate',
+                    image_path VARCHAR(500),
                     FOREIGN KEY (root_component_id) REFERENCES root_component(id) ON DELETE CASCADE,
                     FOREIGN KEY (color_id) REFERENCES color(id) ON DELETE SET NULL,
                     FOREIGN KEY (material_id) REFERENCES material(id) ON DELETE SET NULL
@@ -146,6 +149,7 @@ class DatabaseManager:
                     weight DECIMAL,
                     weight_unit VARCHAR(10) DEFAULT 'g',
                     node_type VARCHAR(20) DEFAULT 'Leaf',
+                    image_path VARCHAR(500),
                     FOREIGN KEY (root_component_id) REFERENCES root_component(id) ON DELETE CASCADE,
                     FOREIGN KEY (color_id) REFERENCES color(id) ON DELETE SET NULL,
                     FOREIGN KEY (material_id) REFERENCES material(id) ON DELETE SET NULL
@@ -269,6 +273,22 @@ class DatabaseManager:
             # ==================== INSERT DEFAULT DATA ====================
             self._insert_default_colors(cursor)
             self._insert_default_materials(cursor)
+            
+            # ==================== MIGRATIONS ====================
+            self._migrate_add_image_path(cursor)
+
+    def _migrate_add_image_path(self, cursor):
+        """Migration: Add image_path column to existing tables."""
+        tables = ['action', 'root_component', 'intermediate_component', 'leaf_component']
+        for table in tables:
+            try:
+                # Check if column exists
+                cursor.execute(f"PRAGMA table_info({table})")
+                columns = [row[1] for row in cursor.fetchall()]
+                if 'image_path' not in columns:
+                    cursor.execute(f'ALTER TABLE {table} ADD COLUMN image_path VARCHAR(500)')
+            except Exception:
+                pass  # Column might already exist or table doesn't exist
 
     def _insert_default_colors(self, cursor):
         """Insert default colors if not exist."""
@@ -365,7 +385,7 @@ class DatabaseManager:
     def update_product(self, product_id: int, **kwargs) -> bool:
         """Update root product properties."""
         allowed = {'name', 'brand', 'model', 'description', 'color_id',
-                   'material_id', 'weight', 'weight_unit', 'node_type'}
+                   'material_id', 'weight', 'weight_unit', 'node_type', 'image_path'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
@@ -562,7 +582,7 @@ class DatabaseManager:
     def update_component(self, component_id: int, **kwargs) -> bool:
         """Update component properties."""
         table_name, row_id = self._decode_component_id(component_id)
-        allowed = {'name', 'color_id', 'material_id', 'weight', 'weight_unit', 'node_type'}
+        allowed = {'name', 'color_id', 'material_id', 'weight', 'weight_unit', 'node_type', 'image_path'}
         if table_name == "root_component":
             allowed.update({'brand', 'model', 'description'})
         else:
@@ -949,7 +969,7 @@ class DatabaseManager:
 
     def update_action(self, action_id: int, **kwargs) -> bool:
         """Update action properties."""
-        allowed = {'name', 'description', 'tool_id'}
+        allowed = {'name', 'description', 'tool_id', 'image_path'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
