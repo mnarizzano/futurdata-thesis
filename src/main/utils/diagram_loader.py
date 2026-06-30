@@ -174,6 +174,7 @@ class DiagramLoader:
         shape.text = action.get('name', 'Action')
         shape.name = action.get('name', '')
         shape.description = action.get('description', '')
+        shape.image_path = action.get('image_path', '')
         shape.db_action_id = action['id']
         shape.db_step_id = action_data['step_id']
         shape.db_step_action_id = action_data['link_id']
@@ -240,6 +241,7 @@ class DiagramLoader:
                         'name': data['name'],
                         'description': data['description'],
                         'tool_id': data['tool_id'],
+                        'image_path': data.get('image_path', ''),
                         'tool_name': data.get('tool_name'),
                         'tool_category': data.get('tool_category'),
                     }
