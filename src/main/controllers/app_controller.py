@@ -829,17 +829,22 @@ class AppController:
         self.diagram.snap_to_grid = not self.diagram.snap_to_grid
         self.view.set_status(f"Snap to grid: {'on' if self.diagram.snap_to_grid else 'off'}")
 
+    # ---- NEW : changed zoom controller methods ----
     def zoom_in(self):
-        """Zoom in (not yet implemented)."""
-        self.view.set_status("Zoom in (not yet implemented)")
+        if self.view and hasattr(self.view, 'canvas'):
+            self.view.canvas.zoom_in()
+            self.view.set_status("Zoomed in")
 
     def zoom_out(self):
-        """Zoom out (not yet implemented)."""
-        self.view.set_status("Zoom out (not yet implemented)")
+        if self.view and hasattr(self.view, 'canvas'):
+            self.view.canvas.zoom_out()
+            self.view.set_status("Zoomed out")
 
     def reset_zoom(self):
-        """Reset zoom (not yet implemented)."""
-        self.view.set_status("Reset zoom (not yet implemented)")
+        if self.view and hasattr(self.view, 'canvas'):
+            self.view.canvas.reset_zoom()
+            self.view.set_status("Zoom reset")
+    # ---- end changed zoom controller methods ----
 
     def new_diagram(self):
         """Create a new diagram. Existing database entries are preserved."""
