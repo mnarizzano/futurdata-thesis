@@ -8,6 +8,7 @@ from ..utils.geometry import get_arrow_points
 
 
 class DiagramCanvas(tk.Canvas):
+    #definition of constants for grid, colors, and canvas dimensions
     GRID_SIZE = 50
     GRID_COLOR = "#e0e0e0"
     SELECT_COLOR = "#667eea"
@@ -16,14 +17,26 @@ class DiagramCanvas(tk.Canvas):
     DIAMOND_FILL = "white"
     COMPONENT_FILL = "white"
     BORDER_COLOR = "black"
-
+    # ---- NEW : added colors for root, leaf and intermediate components
+    #      plus constants for leaf corner radius and intermediate cut ----
+    ROOT_COMPONENT_OUTLINE = "#1f2937"
+    LEAF_COMPONENT_OUTLINE = "#15803d"
+    INTERMEDIATE_COMPONENT_OUTLINE = "#92400e"
+    LEAF_COMPONENT_FILL = "#ecfdf5"
+    LEAF_CORNER_RADIUS = 60
+    INTERMEDIATE_CUT = 18
+    # ---- end of added colors and constants ----
     MIN_CANVAS_WIDTH = 2000
     MIN_CANVAS_HEIGHT = 2000
     EXPANSION_MARGIN = 500
 
+    #constructor for the class, initializing the canvas with default settings and creating the grid 
     def __init__(self, parent, **kwargs):
+        # define default background and highlight thickness if not provided
         kwargs.setdefault('bg', 'white')
         kwargs.setdefault('highlightthickness', 0)
+        """ initialize the canvas with the parent widget, define width and height
+            set scroll region, initialize grid and snapping settings ----"""
         super().__init__(parent, **kwargs)
         self.canvas_width = self.MIN_CANVAS_WIDTH
         self.canvas_height = self.MIN_CANVAS_HEIGHT
@@ -32,6 +45,13 @@ class DiagramCanvas(tk.Canvas):
         self.snap_to_grid = True
         self.alignment_guides = {'vertical': [], 'horizontal': []}
         self.draw_grid()
+
+        # ---- NEW : changed zoom settings ----
+        self.zoom_factor = 1.0
+        self.zoom_step = 1.15
+        self.min_zoom = 0.3
+        self.max_zoom = 3.0
+        # ---- end zoom settings ----
 
     def expand_canvas_if_needed(self, x: float, y: float, margin: float = 100, redraw_grid: bool = False) -> bool:
         """Expand canvas if point is near the edge. Returns True if expanded."""
@@ -81,7 +101,7 @@ class DiagramCanvas(tk.Canvas):
             scrolled = True
 
         return scrolled
-    
+
     def scroll_to_shape(self, shape: Shape):
         """
         Scroll canvas to make shape visible in viewport.
@@ -144,7 +164,7 @@ class DiagramCanvas(tk.Canvas):
             self.canvas_width = self.MIN_CANVAS_WIDTH
             self.canvas_height = self.MIN_CANVAS_HEIGHT
         else:
-            max_x = max(shape.x + 200 for shape in shapes)  # Add padding for shape size
+            max_x = max(shape.x + 200 for shape in shapes)          # Add padding for shape size
             max_y = max(shape.y + 200 for shape in shapes)
             self.canvas_width = max(self.MIN_CANVAS_WIDTH, int(max_x + self.EXPANSION_MARGIN))
             self.canvas_height = max(self.MIN_CANVAS_HEIGHT, int(max_y + self.EXPANSION_MARGIN))
@@ -152,6 +172,7 @@ class DiagramCanvas(tk.Canvas):
         self.config(scrollregion=(0, 0, self.canvas_width, self.canvas_height))
         self.draw_grid()
 
+    # method to draw the grid on the canvas, based on the defined grid size and color
     def draw_grid(self):
         if not self.show_grid:
             return
@@ -164,10 +185,11 @@ class DiagramCanvas(tk.Canvas):
             self.create_line(x1, y, x2, y, fill=self.GRID_COLOR, tags="grid")
         self.tag_lower("grid")
 
+    # draws the given shape on the canvas, handling different shape types and their properties
     def draw_shape(self, shape: Shape) -> None:
-        if shape.shape_id is not None:
+        if shape.shape_id is not None:          # If the shape already has a canvas item, delete it before redrawing
             self.delete(shape.shape_id)
-        if shape.text_id is not None:
+        if shape.text_id is not None:           # If the shape already has a text item, delete it before rewriting
             self.delete(shape.text_id)
 
         if isinstance(shape, ActionCircle):
@@ -179,9 +201,10 @@ class DiagramCanvas(tk.Canvas):
         elif isinstance(shape, ArrowShape):
             self._draw_arrow_shape(shape)
 
-        if shape.selected:
+        if shape.selected: # If the shape is selected, draw a selection indicator around it
             self._draw_selection(shape)
-
+    
+    # draws an action circle shape on the canvas, with appropriate styling based on selection state
     def _draw_action_circle(self, shape: ActionCircle):
         x1, y1, x2, y2 = shape.get_bounds()
         border_width = 3 if shape.selected else 2
@@ -194,6 +217,7 @@ class DiagramCanvas(tk.Canvas):
             width=75, tags="shape_text"
         )
 
+    # draws a diamond step shape on the canvas, with appropriate styling based on selection state
     def _draw_diamond_step(self, shape: DiamondStep):
         half = shape.SIZE / 2
         points = [
@@ -212,17 +236,120 @@ class DiagramCanvas(tk.Canvas):
             width=65, tags="shape_text"
         )
 
+    # ---- NEW : added methods to draw component box shapes with different styles based on node type ----
+    
+    """method that creates a rounded leaf box clockwise from the top-left corner
+       x1 and y1 are the coordinates of the top-left corner, x2 and y2 are the coordinates of the bottom-right corner, 
+       radius is the radius of the rounded corners"""  
+    
+    def _create_rounded_rectangle(self, x1, y1, x2, y2, radius, **kwargs):
+        """Create a rounded rectangle on the canvas for leaf nodes."""
+        radius = min(radius, abs((x2 - x1) / 2), abs((y2 - y1) / 2))            #limit radius to half the width or height to avoid overlap
+        segments = 16           #number of segments to approximate the rounded corners
+        points = []             #will hold the points for the rounded rectangle
+
+        # Add points of the top edge
+        points.append((x1 + radius, y1))
+        points.append((x2 - radius, y1))
+
+        # Top-right corner
+        for i in range(segments + 1):
+            angle = -math.pi / 2 + (math.pi / 2) * i / segments
+            points.append((x2 - radius + radius * math.cos(angle), y1 + radius + radius * math.sin(angle)))
+
+        # Right edge
+        points.append((x2, y1 + radius))
+        points.append((x2, y2 - radius))
+
+        # Bottom-right corner
+        for i in range(segments + 1):
+            angle = 0 + (math.pi / 2) * i / segments
+            points.append((x2 - radius + radius * math.cos(angle), y2 - radius + radius * math.sin(angle)))
+
+        # Bottom edge
+        points.append((x2 - radius, y2))
+        points.append((x1 + radius, y2))
+
+        # Bottom-left corner
+        for i in range(segments + 1):
+            angle = math.pi / 2 + (math.pi / 2) * i / segments
+            points.append((x1 + radius + radius * math.cos(angle), y2 - radius + radius * math.sin(angle)))
+
+        # Left edge
+        points.append((x1, y2 - radius))
+        points.append((x1, y1 + radius))
+
+        # Top-left corner
+        for i in range(segments + 1):
+            angle = math.pi + (math.pi / 2) * i / segments
+            points.append((x1 + radius + radius * math.cos(angle), y1 + radius + radius * math.sin(angle)))
+
+        # Flatten the list of points for create_polygon
+        flat_points = [coord for point in points for coord in point]
+        return self.create_polygon(flat_points, smooth=False, **kwargs)
+
+    #create a trimmed rectangle for intermediate nodes, with a cut on the top-left and bottom-right corners
+    def _create_trimmed_rectangle(self, x1, y1, x2, y2, trim, **kwargs):
+        points = [
+            x1 + trim, y1,
+            x2 - trim, y1,
+            x2, y1 + trim,
+            x2, y2 - trim,
+            x2 - trim, y2,
+            x1 + trim, y2,
+            x1, y2 - trim,
+            x1, y1 + trim
+        ]
+        return self.create_polygon(points, smooth=False, **kwargs)
+    # ---- end of new methods to draw component box shapes ----
+
+    # ---- NEW : modified _draw_component_box to use different styles based on node type ----
     def _draw_component_box(self, shape: ComponentBox):
-        x1, y1, x2, y2 = shape.get_bounds()
+        x1, y1, x2, y2 = shape.get_bounds()                                         #get the bounding box coordinates for the component box shape
+        node_type = str(shape.properties.get('node_type', '')).strip().lower()      #determine node type from the shape's properties, defauls to an empty string if not found
+
         border_width = 3 if shape.selected else 2
-        border_color = self.SELECT_COLOR if shape.selected else self.BORDER_COLOR
-        shape.shape_id = self.create_rectangle(
-            x1, y1, x2, y2, fill=self.COMPONENT_FILL, outline=border_color, width=border_width, tags="shape"
-        )
+        outline_color = self.SELECT_COLOR if shape.selected else self.BORDER_COLOR
+
+        if node_type == 'root':
+            shape.shape_id = self.create_rectangle(
+                x1, y1, x2, y2,
+                fill=self.COMPONENT_FILL,
+                outline=self.ROOT_COMPONENT_OUTLINE,
+                width=border_width,
+                tags="shape"
+            )
+            outline_color = self.SELECT_COLOR if shape.selected else self.ROOT_COMPONENT_OUTLINE
+        elif node_type == 'leaf':
+            shape.shape_id = self._create_rounded_rectangle(
+                x1, y1, x2, y2, self.LEAF_CORNER_RADIUS,
+                fill=self.COMPONENT_FILL,
+                outline=self.LEAF_COMPONENT_OUTLINE,
+                width=border_width,
+                tags="shape"
+            )
+            outline_color = self.SELECT_COLOR if shape.selected else self.LEAF_COMPONENT_OUTLINE
+        else:
+            shape.shape_id = self._create_trimmed_rectangle(
+                x1, y1, x2, y2, self.INTERMEDIATE_CUT,
+                fill=self.COMPONENT_FILL,
+                outline=self.INTERMEDIATE_COMPONENT_OUTLINE,
+                width=border_width,
+                tags="shape"
+            )
+            outline_color = self.SELECT_COLOR if shape.selected else self.INTERMEDIATE_COMPONENT_OUTLINE
+
+        if shape.selected:                 #if the shape is selected, change the outline color to the selection color
+            self.itemconfig(shape.shape_id, outline=self.SELECT_COLOR)
+        else:
+            self.itemconfig(shape.shape_id, outline=outline_color)
+
+        #draw the text for the component box shape, centered within the shape's bounding box
         shape.text_id = self.create_text(
             shape.x, shape.y, text=shape.text, font=("Arial", 9), fill="black", 
             width=145, tags="shape_text"
         )
+    # ---- end of new method to draw component box shapes ----
 
     def _draw_arrow_shape(self, shape: ArrowShape):
         if shape.from_shape and shape.to_shape:
@@ -240,6 +367,7 @@ class DiagramCanvas(tk.Canvas):
     def _draw_selection(self, shape: Shape):
         pass
 
+    # draws a connection between two shapes on the canvas, with optional dashed styling based on the connection type
     def draw_connection(self, connection: Connection) -> None:
         if connection.arrow_id is not None:
             self.delete(connection.arrow_id)
@@ -258,9 +386,11 @@ class DiagramCanvas(tk.Canvas):
         for y in guides.get('horizontal', []):
             self.create_line(0, y, self.canvas_width, y, fill=self.GUIDE_COLOR, width=1, dash=(4, 4), tags="guide")
 
+    # clears all alignment guides from the canvas
     def clear_alignment_guides(self):
         self.delete("guide")
 
+    # clears all shapes, connections, and guides from the canvas
     def clear_canvas(self):
         self.delete("shape")
         self.delete("shape_text")
@@ -300,11 +430,29 @@ class DiagramCanvas(tk.Canvas):
         else:
             self.delete("grid")
 
+    # ---- NEW : changed zoom methods ----
     def zoom_in(self):
-        pass
+        if self.zoom_factor >= self.max_zoom:
+            return
+        old_factor = self.zoom_factor
+        self.zoom_factor = min(self.max_zoom, self.zoom_factor * self.zoom_step)
+        self._apply_zoom(self.zoom_factor / old_factor)
 
     def zoom_out(self):
-        pass
+        if self.zoom_factor <= self.min_zoom:
+            return
+        old_factor = self.zoom_factor
+        self.zoom_factor = max(self.min_zoom, self.zoom_factor / self.zoom_step)
+        self._apply_zoom(self.zoom_factor / old_factor)
 
     def reset_zoom(self):
-        pass
+        if self.zoom_factor == 1.0:
+            return
+        self._apply_zoom(1.0 / self.zoom_factor)
+        self.zoom_factor = 1.0
+
+    def _apply_zoom(self, scale_ratio):
+        self.scale("all", 0, 0, scale_ratio, scale_ratio)
+        self.config(scrollregion=(0, 0, self.canvas_width * self.zoom_factor, self.canvas_height * self.zoom_factor))
+    # ---- end of changed zoom methods ----
+
