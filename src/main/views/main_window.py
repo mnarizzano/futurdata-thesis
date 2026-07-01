@@ -137,6 +137,23 @@ class MainWindow:
         self.root.bind('<Control-0>', lambda e: self.controller.reset_zoom())
         self.root.bind('<Escape>', lambda e: self.controller.on_escape(e))
         self.root.protocol("WM_DELETE_WINDOW", self.on_exit)
+        # ---- NEW :  changed delete/zoom shortcut bindings ----
+        self.root.bind('<BackSpace>', lambda e: self.controller.delete_selected())
+        self.root.bind('<Control-a>', lambda e: self.controller.select_all())
+        self.root.bind('<Control-equal>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Control-Shift-equal>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Control-KP_Add>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Control-KP_Subtract>', lambda e: self.controller.zoom_out())
+        # ---- NEW : added zoom bindings for macOS (Command key) ----
+        self.root.bind('<Command-plus>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Command-equal>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Command-Shift-equal>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Command-KP_Add>', lambda e: self.controller.zoom_in())
+        self.root.bind('<Command-minus>', lambda e: self.controller.zoom_out())
+        self.root.bind('<Command-KP_Subtract>', lambda e: self.controller.zoom_out())
+        self.root.bind('<Command-0>', lambda e: self.controller.reset_zoom())
+        # ---- end changed zoom bindings ----
+        # ---- end changed delete/zoom shortcut bindings ----
         
         # Bind Ctrl+A only to canvas (not globally) so text widgets can handle it
         self.canvas.bind('<Control-a>', lambda e: self.controller.select_all())
