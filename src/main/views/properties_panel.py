@@ -228,6 +228,41 @@ class PropertiesPanel(ttk.Frame):
             widget = self._create_field_widget(self.properties_frame, field, row, value)
             self.dynamic_fields[field_name] = widget
 
+         # ---- NEW : changed component type display ----
+        """This code adds a label to display the component type
+           (Root, Leaf or Composite) based on the node_type value."""
+        display_type = {
+            "root": "Root Component",
+            "leaf": "Leaf Component",
+            "intermediate": "Composite Component"
+        }[component_kind]
+
+        #creates the first row of the table with the "Component Type" label
+        component_type_label = ttk.Label(
+            self.properties_frame,
+            text="Component Type:"
+        )
+        component_type_label.grid(row=0, column=0, sticky="w", pady=3)
+
+        #creates the second row of the table with the component type (Root, Leaf or Composite)
+        component_type_value = ttk.Label(
+            self.properties_frame,
+            text=display_type,
+            foreground="blue",
+            font=("Arial", 9, "bold")
+        )
+        component_type_value.grid(row=0, column=1, sticky="w", pady=3)
+
+        # Shift existing dynamic property rows down by one so the read-only
+        # component type label stays at the top and does not overlap fields.
+        for widget in self.properties_frame.winfo_children():
+            if widget in (component_type_label, component_type_value):
+                continue
+            grid_info = widget.grid_info()
+            if 'row' in grid_info:
+                widget.grid_configure(row=grid_info['row'] + 1)
+        # ---- end changed component type display ----
+
     def _load_action_properties(self, shape: DiamondStep):
         """Load action properties dynamically from database schema."""
         self._clear_dynamic_fields()
