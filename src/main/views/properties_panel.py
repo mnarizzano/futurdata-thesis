@@ -90,6 +90,10 @@ class PropertiesPanel(ttk.Frame):
             # Store color mapping for lookup
             widget.color_map = {c['name']: c['id'] for c in colors}
             widget.color_map_reverse = {c['id']: c['name'] for c in colors}
+
+            # Map color names to hex codes for the UI dropdown
+            widget.color_hex_map = {c['name']: c.get('hex_code', '#ffffff') for c in colors}
+
             # Set current value by color_id
             if value and value in widget.color_map_reverse:
                 widget.set(widget.color_map_reverse[value])
@@ -397,14 +401,32 @@ class PropertiesPanel(ttk.Frame):
             return
 
         if isinstance(self.current_shape, ComponentBox):
-            # FULLY DYNAMIC - write all fields directly to shape.properties dict
+            # We save the original node type before updating 
+            original_node_type = self.current_shape.properties.get('node_type')
+
             for field_name, widget in self.dynamic_fields.items():
+                # Avoid processing structural control fields like UI Labels
+                if field_name in ['node_type', 'id', 'parent_id']:
+                    continue
+
                 value = self._get_widget_value(widget)
                 self.current_shape.properties[field_name] = value
+                
+                # Update the current shape's hex code based on the color selected in the dropdown
+                if field_name == 'color_id' and isinstance(widget, ttk.Combobox):
+                    color_name = widget.get()
+                    if hasattr(widget, 'color_hex_map') and color_name in widget.color_hex_map:
+                        self.current_shape.properties['hex_code'] = widget.color_hex_map[color_name]
+                    else:
+                        self.current_shape.properties['hex_code'] = None
 
-            # Update display text with name
-            if 'name' in self.current_shape.properties:
-                self.current_shape.text = self.current_shape.properties['name']
+            # We safely restore the real node type in the properties dictionary
+            if original_node_type is not None:
+                self.current_shape.properties['node_type'] = original_node_type
+
+            # We synchronize the text of the graphical object so that the name never disappears
+            if 'name' in self.current_shape.properties and self.current_shape.properties['name']:
+                self.current_shape.text = str(self.current_shape.properties['name'])
 
         elif isinstance(self.current_shape, ActionCircle):
             if 'title' in self.dynamic_fields:

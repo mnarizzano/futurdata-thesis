@@ -10,11 +10,13 @@ from ..views.add_material_dialog import AddMaterialDialog
 from ..views.add_tool_dialog import AddToolDialog
 from ..utils import (
     CommandHistory, AddShapeCommand, RemoveShapeCommand, MoveShapeCommand,
-    AddConnectionCommand, EditShapePropertiesCommand, snap_to_grid,
+    AddConnectionCommand, EditShapePropertiesCommand, MultiCommand, snap_to_grid,
     find_alignment_guides, DiagramSerializer
 )
 from ..utils.diagram_loader import DiagramLoader
 from ..utils.json_exporter import EnhancedJSONExporter
+from ..views.manage_colors_dialog import ManageColorsDialog
+from ..views.manage_materials_dialog import ManageMaterialsDialog
 
 
 class AppController:
@@ -538,31 +540,26 @@ class AppController:
         self.view.set_status(f"Duplicated {shape.shape_type}")
 
     def _delete_shape(self, shape):
-        """Delete a single shape if it is not connected."""
-        if self._is_shape_connected(shape):
-            self.view.set_status("Cannot delete: shape is connected. Remove arrows/connections first.")
-            return
-
+        """Delete a shape, removing any arrows/connections attached to it."""
         if not self._delete_shape_from_db(shape):
             return
 
-        command = RemoveShapeCommand(self.diagram, shape)
-        self.command_history.execute(command)
+        commands = [RemoveShapeCommand(self.diagram, arrow)
+                    for arrow in self._get_attached_arrows(shape)]
+        commands.append(RemoveShapeCommand(self.diagram, shape))
+        if len(commands) == 1:
+            self.command_history.execute(commands[0])
+        else:
+            self.command_history.execute(MultiCommand(commands, f"Remove {shape.shape_type}"))
         self._update_view()
         self.view.set_status(f"Deleted {shape.shape_type}")
 
-    def _is_shape_connected(self, shape) -> bool:
-        """Return True if shape is linked via connection lines or arrow shapes."""
+    def _get_attached_arrows(self, shape) -> list:
+        """Return the arrow shapes whose endpoints reference the given shape."""
         if isinstance(shape, ArrowShape):
-            return False
-
-        if self.diagram.get_connections_for_shape(shape):
-            return True
-
-        for s in self.diagram.shapes:
-            if isinstance(s, ArrowShape) and (s.from_shape == shape or s.to_shape == shape):
-                return True
-        return False
+            return []
+        return [s for s in self.diagram.shapes
+                if isinstance(s, ArrowShape) and (s.from_shape == shape or s.to_shape == shape)]
 
     def _delete_shape_from_db(self, shape) -> bool:
         """Delete corresponding DB entity for a shape if it exists.
@@ -687,7 +684,7 @@ class AppController:
             raise ValueError(f"Unknown shape type: {shape_type}")
 
     def delete_selected(self):
-        """Delete all currently selected (unconnected) shapes."""
+        """Delete all currently selected shapes along with their arrows/connections."""
         if not self.diagram.selected_shapes:
             self.view.set_status("No shapes selected")
             return
@@ -699,18 +696,23 @@ class AppController:
             self.connecting_from = None
 
         selected = list(self.diagram.selected_shapes)
-        blocked = [shape for shape in selected if self._is_shape_connected(shape)]
-        if blocked:
-            self.view.set_status("Cannot delete connected shape(s). Remove arrows/connections first.")
-            return
 
         for shape in selected:
             if not self._delete_shape_from_db(shape):
                 return
 
+        to_delete = []
         for shape in selected:
-            command = RemoveShapeCommand(self.diagram, shape)
-            self.command_history.execute(command)
+            for arrow in self._get_attached_arrows(shape):
+                if arrow not in to_delete and arrow not in selected:
+                    to_delete.append(arrow)
+        to_delete.extend(selected)
+
+        commands = [RemoveShapeCommand(self.diagram, shape) for shape in to_delete]
+        if len(commands) == 1:
+            self.command_history.execute(commands[0])
+        else:
+            self.command_history.execute(MultiCommand(commands, "Remove selected shapes"))
 
         self._update_view()
         self.view.set_status("Deleted selected shapes")
@@ -767,9 +769,28 @@ class AppController:
             component_id = self._ensure_component_db_id(shape)
             updates = dict(shape.properties)
             updates.pop("db_id", None)
-            self.db.update_component(int(component_id), **updates)
+
+            safe_updates = {k: v for k, v in updates.items() if not (k == 'root_component_id' and (v is None or str(v).strip() in ('', 'None')))}
+            self.db.update_component(int(component_id), **safe_updates)
             shape.properties["db_id"] = int(component_id)
-            return
+            
+        if 'root_component_id' in updates:
+            val = updates['root_component_id']
+            node_type = shape.properties.get('node_type', '')
+            
+            if node_type == 'Root':
+                updates['root_component_id'] = ""
+            else:
+                # For Leaf or Composite nodes, if the value comes as None or "None",
+                # try to salvage the actual ID stored in the object's memory.
+                if val is None or str(val).strip() in ('', 'None'):
+                    real_id = shape.properties.get('root_component_id')
+                    if real_id and str(real_id).strip() not in ('', 'None'):
+                        updates['root_component_id'] = int(real_id)
+                    else:
+                        # If there is absolutely no real ID, send "" so the DB
+                        # triggers its 'else None' and avoids throwing a TypeError
+                        updates['root_component_id'] = ""
 
         if isinstance(shape, ActionCircle):
             try:
@@ -824,6 +845,21 @@ class AppController:
         self.view.canvas.toggle_grid()
         self.view.set_status(f"Grid: {'on' if self.view.canvas.show_grid else 'off'}")
 
+    def toggle_snap_mode(self):
+        self.diagram.snap_to_grid = not self.diagram.snap_to_grid
+
+        if hasattr(self.view.canvas, 'snap_to_grid'):
+            self.view.canvas.snap_to_grid = self.diagram.snap_to_grid
+
+        self.view.update_snap_button(snap_enabled=self.diagram.snap_to_grid)
+
+        if self.diagram.snap_to_grid:
+            self.view.set_status("Snap to grid: on")
+        else:
+            self.view.set_status("Snap to grid: off")
+            
+        self._update_view()
+
     def toggle_snap(self):
         """Toggle snap-to-grid for shape positioning."""
         self.diagram.snap_to_grid = not self.diagram.snap_to_grid
@@ -831,20 +867,32 @@ class AppController:
 
     # ---- NEW : changed zoom controller methods ----
     def zoom_in(self):
-        if self.view and hasattr(self.view, 'canvas'):
-            self.view.canvas.zoom_in()
-            self.view.set_status("Zoomed in")
+        """
+        Event handler triggered by the 'Zoom In' action shortcut.
+        Instructs the view canvas component to perform the upscale algorithm 
+        and updates the status bar message with the live zoom percentage.
+        """
+        
+        self.view.canvas.zoom_in()
+        self.view.set_status(f"Zoom: {int(self.view.canvas.zoom_factor * 100)}%")
 
     def zoom_out(self):
-        if self.view and hasattr(self.view, 'canvas'):
-            self.view.canvas.zoom_out()
-            self.view.set_status("Zoomed out")
+        """
+        Event handler triggered by the 'Zoom Out' action shortcut.
+        Instructs the view canvas component to perform the downscale algorithm 
+        and updates the status bar message with the live zoom percentage.
+        """
+        self.view.canvas.zoom_out()
+        self.view.set_status(f"Zoom: {int(self.view.canvas.zoom_factor * 100)}%")
 
     def reset_zoom(self):
-        if self.view and hasattr(self.view, 'canvas'):
-            self.view.canvas.reset_zoom()
-            self.view.set_status("Zoom reset")
-    # ---- end changed zoom controller methods ----
+        """
+        Event handler triggered to restore default sizing.
+        Resets the canvas view back to 100% scale and updates the status bar text.
+        """
+        self.view.canvas.reset_zoom()
+        self.view.set_status("Zoom: 100%")
+
 
     def new_diagram(self):
         """Create a new diagram. Existing database entries are preserved."""
@@ -859,6 +907,7 @@ class AppController:
         self.view.set_status("New diagram created (Database preserved - use 'Load Product' to see saved diagrams)")
 
     def open_diagram(self):
+        """Load a diagram from a JSON file chosen by the user."""
         if not self.check_unsaved_changes():
             return
 
@@ -922,6 +971,10 @@ class AppController:
     def clear_canvas(self):
         """Remove all shapes from the canvas after confirmation."""
         if not self.diagram.shapes:
+            # Even with an empty canvas the command history may still hold
+            # undoable commands (e.g. deletions), so reset it anyway.
+            self.command_history.clear()
+            self._update_view()
             self.view.set_status("Canvas is already empty")
             return
 
@@ -954,21 +1007,56 @@ class AppController:
         """Open the dialog for adding a new color."""
         AddColorDialog(self.view.root, self)
 
+    def show_manage_colors_dialog(self):
+        """Open the dialog for managing colors."""
+        ManageColorsDialog(self.view.root, self)
+
     def add_new_color(self, name, hex_code, r, g, b):
         """Create a new color in the DB and refresh the panel."""
         self.db.create_color(name, hex_code, r, g, b)
         self.view.refresh_properties_panel()
         self.view.set_status(f"Added new color: {name}")
 
+    def delete_color(self, color_id: int) -> bool:
+        """Deletes a color and refreshes the properties panel if needed."""
+        try:
+            success = self.db.delete_color(color_id)
+            if success:
+                # If the property panel is open, we refresh it
+                if hasattr(self.view, 'refresh_properties_panel'):
+                    self.view.refresh_properties_panel()
+            return success
+        except sqlite3.IntegrityError:
+            raise ValueError("The color cannot be deleted because it is already assigned to a component.")
+        except Exception as e:
+            raise Exception(f"Error when deleting the color: {e}")
+
     def show_add_material_dialog(self):
         """Open the dialog for adding a new material."""
         AddMaterialDialog(self.view.root, self)
+
+    def show_manage_materials_dialog(self):
+        """Open the dialog for managing materials."""
+        ManageMaterialsDialog(self.view.root, self)
 
     def add_new_material(self, name, sci_name, color_id):
         """Create a new material in the DB and refresh the panel."""
         self.db.create_material(name, sci_name, color_id)
         self.view.refresh_properties_panel()
         self.view.set_status(f"Added new material: {name}")
+
+    def delete_material(self, material_id: int) -> bool:
+        """Deletes a material and refreshes the view."""
+        try:
+            success = self.db.delete_material(material_id)
+            if success:
+                if hasattr(self.view, 'refresh_properties_panel'):
+                    self.view.refresh_properties_panel()
+            return success
+        except sqlite3.IntegrityError:
+            raise ValueError("The material cannot be deleted because it is already assigned to a component.")
+        except Exception as e:
+            raise Exception(f"Error when deleting a material: {e}")
 
     def show_add_tool_dialog(self):
         """Open the dialog for adding a new tool."""

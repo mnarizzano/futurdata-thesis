@@ -8,7 +8,23 @@ from ..models import ActionCircle, DiamondStep, ComponentBox, ArrowShape
 
 
 class MainWindow:
+    """
+    The main application window for the Disassembly Flow Diagram Builder.
+
+    This class serves as the View orchestrating the layout, menu system, 
+    toolbars, interactive canvas, properties panel, status bar, and keyboard 
+    shortcuts. It visualizes the program's UI and delegates user interactions 
+    to the assigned controller.
+    """
+
     def __init__(self, root: tk.Tk, controller):
+        """
+        Initializes the main application window and constructs all UI layouts.
+
+        Args:
+            root (tk.Tk): The root Tkinter application instance window.
+            controller (AppController): The core application controller handling business logic.
+        """
         self.root = root
         self.controller = controller
         self.root.title("Disassembly Flow Diagram Builder")
@@ -23,6 +39,12 @@ class MainWindow:
         self.update_ui_state()
 
     def _create_menu(self):
+        """
+        Creates and configures the top dropdown menu bar.
+
+        Assembles File, Edit and Help cascades, linking their respective commands
+        and structural menu accelerators directly to the app controller.
+        """
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
 
@@ -51,6 +73,9 @@ class MainWindow:
         edit_menu.add_command(label="Add Material...", command=self.controller.show_add_material_dialog)
         edit_menu.add_command(label="Add Tool...", command=self.controller.show_add_tool_dialog)
         edit_menu.add_separator()
+        edit_menu.add_command(label="Manage Colors...", command=self.controller.show_manage_colors_dialog)
+        edit_menu.add_command(label="Manage Materials...", command=self.controller.show_manage_materials_dialog)
+        edit_menu.add_separator()
         edit_menu.add_command(label="Clear Canvas", command=self.controller.clear_canvas)
 
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -58,6 +83,12 @@ class MainWindow:
         help_menu.add_command(label="About", command=self.show_about)
 
     def _create_toolbar(self):
+        """
+        Creates and positions the top toolbar for quick action access.
+
+        Instantiates primary buttons for rapid diagrams interaction like New,
+        Load, Export, Undo, Redo, Delete and Clear operations.
+        """
         toolbar = ttk.Frame(self.root, relief="raised", padding=5)
         toolbar.pack(side="top", fill="x")
 
@@ -80,7 +111,27 @@ class MainWindow:
 
         ttk.Button(toolbar, text="Clear", width=8, command=self.controller.clear_canvas).pack(side="left", padx=2)
 
+        ttk.Separator(toolbar, orient="vertical").pack(side="left", fill="y", padx=5)
+
+        self.snap_btn = tk.Button(
+            toolbar,
+            text = "Snap to Grid: = ON",
+            width = 18,
+            font = ("Arial", 9),
+            bg = "#e0e0e0",
+            relief = tk.SUNKEN,
+            command = self.controller.toggle_snap_mode
+        )
+
+        self.snap_btn.pack(side="left", padx=2)
+
     def _create_main_area(self):
+        """
+        Builds the central three-pane layout of the application workspace.
+
+        Assembles the Left Shape Palette for inserting nodes, the Center interactive
+        scrolling DiagramCanvas and the Right dynamic PropertiesPanel layout.
+        """
         main_frame = ttk.Frame(self.root)
         main_frame.pack(side="top", fill="both", expand=True)
 
@@ -96,24 +147,37 @@ class MainWindow:
         ttk.Button(palette_frame, text="◇ Diamond Step", command=lambda: self.controller.add_shape("diamond")).pack(fill="x", pady=2)
         ttk.Button(palette_frame, text="→ Arrow", command=lambda: self.controller.add_shape("arrow")).pack(fill="x", pady=2)
 
+        self.paned_window = ttk.PanedWindow(main_frame, orient="horizontal")
+        self.paned_window.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+
         canvas_frame = ttk.Frame(main_frame)
-        canvas_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+
+        h_scroll = ttk.Scrollbar(canvas_frame, orient="horizontal", command=lambda *args: self.canvas_view_scroll_x if hasattr(self, 'canvas_view_scroll_x') else None)
+        h_scroll.pack(side="bottom", fill="x")
+
+        v_scroll = ttk.Scrollbar(canvas_frame, orient="vertical")
+        v_scroll.pack(side="right", fill="y")
 
         self.canvas = DiagramCanvas(canvas_frame, bg="white")
         self.canvas.pack(side="left", fill="both", expand=True)
 
-        v_scroll = ttk.Scrollbar(canvas_frame, orient="vertical", command=self.canvas.yview)
-        v_scroll.pack(side="right", fill="y")
-        self.canvas.config(yscrollcommand=v_scroll.set)
+        v_scroll.config(command=self.canvas.yview)
+        h_scroll.config(command=self.canvas.xview)
+        self.canvas.config(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
-        h_scroll = ttk.Scrollbar(self.root, orient="horizontal", command=self.canvas.xview)
-        h_scroll.pack(side="bottom", fill="x", before=canvas_frame)
-        self.canvas.config(xscrollcommand=h_scroll.set)
+        self.paned_window.add(canvas_frame, weight=4)
 
-        self.properties_panel = PropertiesPanel(main_frame, on_apply_callback=self.controller.apply_properties)
-        self.properties_panel.pack(side="right", fill="y", padx=(0, 5), pady=5)
+        self.properties_panel = PropertiesPanel(self.paned_window, on_apply_callback=self.controller.apply_properties)
+
+        self.paned_window.add(self.properties_panel, weight=1)
 
     def _create_status_bar(self):
+        """
+        Creates the bottom status bar window attachment.
+
+        Establishes labels to provide system status logs on the bottom-left
+        and active shape metrics counters on the bottom-right.
+        """
         self.status_bar = ttk.Frame(self.root, relief="sunken")
         self.status_bar.pack(side="bottom", fill="x")
 
@@ -124,6 +188,12 @@ class MainWindow:
         self.shape_count_label.pack(side="right")
 
     def _bind_shortcuts(self):
+        """
+        Binds global and widget-specific event configurations and hotkeys.
+
+        Handles key triggers (Ctrl+S, Ctrl+Z, etc.), map navigation hotkeys, zoom
+        and ensures interception protocols for OS close event requests.
+        """
         self.root.bind('<Control-n>', lambda e: self.controller.new_diagram())
         self.root.bind('<Control-l>', lambda e: self.controller.show_product_list())
         self.root.bind('<Control-o>', lambda e: self.controller.open_diagram())
@@ -168,7 +238,18 @@ class MainWindow:
         self.root.bind_class("TCombobox", "<Control-a>", self._select_all_text)
     
     def _select_all_text(self, event):
-        """Select all text in Entry or Text widget."""
+        """
+        Event handler that intercepts Ctrl+A inside input fields to select text.
+
+        Prevents triggering the global diagram 'Select All' function when the user 
+        is actively editing a text-based properties widget.
+
+        Args:
+            event: The Tkinter keyboard event context.
+
+        Returns:
+            str: "break" string sequence to stop event propagation in Tkinter.
+        """
         widget = event.widget
         try:
             if isinstance(widget, tk.Text):
@@ -183,6 +264,12 @@ class MainWindow:
             pass
 
     def update_ui_state(self):
+        """
+        Refreshes dynamic interface states based on current application history.
+
+        Evaluates the undo/redo stack accessibility metrics to enable or disable
+        their buttons contextually and updates total layout elements counters.
+        """
         can_undo = self.controller.can_undo()
         can_redo = self.controller.can_redo()
         self.undo_button.config(state="normal" if can_undo else "disabled")
@@ -191,15 +278,36 @@ class MainWindow:
         self.shape_count_label.config(text=f"Shapes: {shape_count}")
 
     def set_status(self, message: str):
+        """
+        Updates the message logged inside the bottom-left status bar.
+
+        Args:
+            message (str): The execution status text summary to display.
+        """
         self.status_label.config(text=message)
 
     def update_properties_panel(self, shape=None):
+        """
+        Loads a designated shape model context into the properties panel.
+
+        Args:
+            shape (Shape, optional): The target shape schema to load. Defaults to None.
+        """
         self.properties_panel.load_shape(shape)
 
     def refresh_properties_panel(self):
+        """
+        Triggers a state refresh sequence on the properties panel.
+
+        Forces synchronization updates on custom form values following a database 
+        transaction or manual properties injection.
+        """
         self.properties_panel.refresh()
 
     def show_about(self):
+        """
+        Displays an informational standard popup dialog crediting the application.
+        """
         messagebox.showinfo(
             "About",
             "Disassembly Flow Diagram Builder\n\n"
@@ -210,10 +318,22 @@ class MainWindow:
         )
 
     def on_exit(self):
+        """
+        Intercepts closure attempts to evaluate outstanding file operations.
+
+        Ensures that unsaved layout data is checked before letting the user 
+        terminate the execution loop runtime.
+        """
         if self.controller.check_unsaved_changes():
             self.root.quit()
 
     def ask_save_changes(self) -> Optional[str]:
+        """
+        Prompts a confirmation warning asking whether unsaved data should be backed up.
+
+        Returns:
+            Optional[str]: 'save' to confirm, 'discard' to ignore or 'cancel' to halt termination.
+        """
         result = messagebox.askyesnocancel("Unsaved Changes", "You have unsaved changes. Do you want to save them?")
         if result is True:
             return 'save'
@@ -223,6 +343,16 @@ class MainWindow:
             return 'cancel'
 
     def ask_file_path(self, save=True, file_types=None) -> Optional[str]:
+        """
+        Launches operational system prompt widgets for managing storage IO paths.
+
+        Args:
+            save (bool): True to deploy a save dialog box. False to launch an open file box.
+            file_types (list, optional): Filter tuples defining valid extensions. Defaults to JSON.
+
+        Returns:
+            Optional[str]: Selected absolute string target file path, or None if cancelled.
+        """
         if file_types is None:
             file_types = [("JSON files", "*.json"), ("All files", "*.*")]
         if save:
@@ -231,7 +361,27 @@ class MainWindow:
             return filedialog.askopenfilename(filetypes=file_types)
 
     def show_error(self, title: str, message: str):
+        """
+        Deploys a standardized modal dialog presenting an error report.
+
+        Args:
+            title (str): The header string context title of the popup window.
+            message (str): Explicit error summary log description.
+        """
         messagebox.showerror(title, message)
 
     def show_info(self, title: str, message: str):
+        """
+        Deploys a standardized modal dialog presenting informative notification summaries.
+
+        Args:
+            title (str): The header string context title of the popup window.
+            message (str): Core notice text description details.
+        """
         messagebox.showinfo(title, message)
+    
+    def update_snap_button(self, snap_enabled: bool):
+        if snap_enabled:
+            self.snap_btn.config(text="Snap to Grid: ON", relief=tk.SUNKEN, bg="#e0e0e0")
+        else:
+            self.snap_btn.config(text="Snap to Grid: OFF", relief=tk.RAISED, bg="#f0f0f0")

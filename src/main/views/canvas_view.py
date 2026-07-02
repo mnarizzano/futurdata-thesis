@@ -45,6 +45,8 @@ class DiagramCanvas(tk.Canvas):
         self.snap_to_grid = True
         self.alignment_guides = {'vertical': [], 'horizontal': []}
         self.draw_grid()
+        self.zoom_factor = 1.0
+        self.diagram = None
 
         # ---- NEW : changed zoom settings ----
         self.zoom_factor = 1.0
@@ -398,11 +400,35 @@ class DiagramCanvas(tk.Canvas):
         self.delete("guide")
 
     def redraw_all(self, diagram):
-        self.clear_canvas()
-        for connection in diagram.connections:
-            self.draw_connection(connection)
+        """
+        Clears the canvas and performs a full re-render of the diagram.
+
+        Args:
+            diagram: An object containing collections of shapes and 
+                     connections to be drawn on the canvas.
+        
+        Note:
+            This method resets the canvas, redraws the grid background, 
+            iterates through all objects to recreate them, and reapplies 
+            the current zoom transformation to maintain state consistency.
+        """
+        if diagram is None:
+            return 
+
+        # Clear existing elements and reset background grid
+        self.delete("all")
+        self.draw_grid()
+        
+       # Render diagram elements: shapes first, then connections
         for shape in diagram.shapes:
             self.draw_shape(shape)
+        for conn in diagram.connections:
+            self.draw_connection(conn)
+
+        # Reapply current zoom scale if a transformation is active    
+        if self.zoom_factor != 1.0:
+            self.scale("all", 0, 0, self.zoom_factor, self.zoom_factor)
+
 
     def update_shape(self, shape: Shape):
         self.draw_shape(shape)
@@ -432,27 +458,53 @@ class DiagramCanvas(tk.Canvas):
 
     # ---- NEW : changed zoom methods ----
     def zoom_in(self):
-        if self.zoom_factor >= self.max_zoom:
-            return
-        old_factor = self.zoom_factor
-        self.zoom_factor = min(self.max_zoom, self.zoom_factor * self.zoom_step)
-        self._apply_zoom(self.zoom_factor / old_factor)
+        """
+        Increases the current zoom level by scaling all objects up by 10% .
+        """
+        self._apply_zoom(1.1)
 
     def zoom_out(self):
-        if self.zoom_factor <= self.min_zoom:
-            return
-        old_factor = self.zoom_factor
-        self.zoom_factor = max(self.min_zoom, self.zoom_factor / self.zoom_step)
-        self._apply_zoom(self.zoom_factor / old_factor)
+        """
+        Decreases the current zoom level by scaling all objects down by 10% .
+        """
+        self._apply_zoom(0.9)
 
     def reset_zoom(self):
-        if self.zoom_factor == 1.0:
+        """
+        Resets the zoom factor back to the default 100% scale (1.0).
+
+        Calculates the inverse factor based on the current zoom level 
+        to revert the layout to its original scale.
+        """
+        if self.zoom_factor != 1.0:
+            factor = 1.0 / self.zoom_factor
+            self._apply_zoom(factor)
+            self.zoom_factor = 1.0
+
+    def _apply_zoom(self, factor: float):
+        """
+        Applies mathematical scaling to all graphical items in the canvas.
+
+        Args:
+            factor (float): The multiplier to apply to the current zoom.
+
+        Note:
+            Handles scroll region recalculation, grid adjustment, and
+            uses the native Tkinter .scale() method with (0,0) as the anchor.
+        """
+        next_zoom = self.zoom_factor * factor
+        if not (0.4 <= next_zoom <= 3.0) and factor != (1.0 / self.zoom_factor):
             return
-        self._apply_zoom(1.0 / self.zoom_factor)
-        self.zoom_factor = 1.0
 
-    def _apply_zoom(self, scale_ratio):
-        self.scale("all", 0, 0, scale_ratio, scale_ratio)
-        self.config(scrollregion=(0, 0, self.canvas_width * self.zoom_factor, self.canvas_height * self.zoom_factor))
-    # ---- end of changed zoom methods ----
+        self.zoom_factor = next_zoom
 
+       
+        self.scale("all", 0, 0, factor, factor)
+        
+       
+        self.canvas_width = int(self.canvas_width * factor)
+        self.canvas_height = int(self.canvas_height * factor)
+        self.config(scrollregion=(0, 0, self.canvas_width, self.canvas_height))
+        
+        
+        self.draw_grid()

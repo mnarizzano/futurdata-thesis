@@ -26,6 +26,17 @@ class DatabaseManager:
     """Manages SQLite database operations for the diagram application."""
 
     def __init__(self, db_path: str = None):
+        """
+        Initializes the DatabaseManager with a specific database filesystem path.
+
+        If no custom file path is provided, it automatically provisions a hidden application 
+        directory named '.disassembly_diagram' inside the user's home path, utilizing a default 
+        file name 'disassembly_flow.db'.
+
+        Args:
+            db_path (str, optional): The absolute or relative filesystem path to the target 
+                                     SQLite database file. Defaults to None.
+        """
         if db_path is None:
             app_dir = os.path.join(os.path.expanduser("~"), ".disassembly_diagram")
             os.makedirs(app_dir, exist_ok=True)
@@ -36,7 +47,15 @@ class DatabaseManager:
 
     @contextmanager
     def _get_connection(self):
-        """Context manager for database connections."""
+        """
+        Context manager for database connections.
+
+        Yields:
+            sqlite3.Connection: An active and configured connection to the SQLite database.
+
+        Raises:
+            Exception: Re-raises any underlying execution exceptions encountered after executing a rollback.
+        """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
@@ -50,7 +69,7 @@ class DatabaseManager:
             conn.close()
 
     def _init_database(self):
-        """Initialize the database schema."""
+        """Initializes the database schema."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("PRAGMA foreign_keys = ON")
@@ -271,7 +290,11 @@ class DatabaseManager:
             self._insert_default_materials(cursor)
 
     def _insert_default_colors(self, cursor):
-        """Insert default colors if not exist."""
+        """
+        Inserts default colors if they do not exist.
+        Args:
+            cursor (sqlite3.Cursor): An active database query cursor.
+        """
         default_colors = [
             ('Red', '#FF0000', 255, 0, 0),
             ('Green', '#00FF00', 0, 255, 0),
@@ -297,7 +320,12 @@ class DatabaseManager:
             ''', (name, hex_code, r, g, b))
 
     def _insert_default_materials(self, cursor):
-        """Insert default materials if not exist."""
+        """
+        Inserts default materials if not exist.
+        
+        Args:
+            cursor (sqlite3.Cursor): An active database query cursor.
+        """
         default_materials = [
             ("Plastic", "PC", None),
             ("Metal", "N/A", None),
@@ -321,6 +349,22 @@ class DatabaseManager:
     _LEAF_OFFSET = 2_000_000
 
     def _encode_component_id(self, table_name: str, row_id: int) -> int:
+        """
+        Encodes a database table row identifier into a globally unified, table-agnostic component ID.
+
+        Applies specific virtual mathematical numeric offsets depending on the category of 
+        the source table to maintain a collision-free ID schema inside application view modules.
+
+        Args:
+            table_name (str): Name of the component database table source.
+            row_id (int): The absolute database primary integer key.
+
+        Returns:
+            int: The globally unique encoded integer component ID.
+
+        Raises:
+            ValueError: If an unsupported table mapping name is provided.
+        """
         if table_name == "root_component":
             return row_id
         if table_name == "intermediate_component":
@@ -330,6 +374,15 @@ class DatabaseManager:
         raise ValueError(f"Unsupported component table: {table_name}")
 
     def _decode_component_id(self, component_id: int) -> Tuple[str, int]:
+        """
+        Decodes a unified virtual component ID back into its physical table name and database row ID.
+
+        Args:
+            component_id (int): The encoded virtual component identifier.
+
+        Returns:
+            Tuple[str, int]: A mapping tuple containing the string database table name and target row ID.
+        """
         if component_id >= self._LEAF_OFFSET:
             return "leaf_component", component_id - self._LEAF_OFFSET
         if component_id >= self._INTERMEDIATE_OFFSET:
@@ -338,7 +391,20 @@ class DatabaseManager:
 
     def create_product(self, name: str, brand: str = "", model: str = "",
                        description: str = "", x: float = 400, y: float = 100) -> int:
-        """Create a root component (product). Returns the product ID."""
+        """
+        Creates a root component (product) entry inside the database records.
+
+        Args:
+            name (str): Comprehensive title of the product.
+            brand (str, optional): Brand or manufacturer tag. Defaults to "".
+            model (str, optional): Model identification code. Defaults to "".
+            description (str, optional): Verbose textual details. Defaults to "".
+            x (float, optional): Initial visual canvas x-coordinate anchor. Defaults to 400.
+            y (float, optional): Initial visual canvas y-coordinate anchor. Defaults to 100.
+
+        Returns:
+            int: The physical database row ID assigned to the new product record.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -348,7 +414,16 @@ class DatabaseManager:
             return cursor.lastrowid
 
     def get_product(self, product_id: int) -> Optional[Dict[str, Any]]:
-        """Get root product by ID."""
+        """
+        Gets root product by ID.
+
+        Args:
+            product_id (int): The target primary key row ID.
+
+        Returns:
+            Optional[Dict[str, Any]]: Row representation data converted to a key-value dictionary 
+                                      or None if no match is found.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM root_component WHERE id = ?', (product_id,))
@@ -356,14 +431,28 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def get_all_products(self) -> List[Dict[str, Any]]:
-        """Get all root products."""
+        """
+        Gets all root products sorted chronologically by modification date.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries representing every product root trace.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM root_component ORDER BY modified_at DESC')
             return [dict(row) for row in cursor.fetchall()]
 
     def update_product(self, product_id: int, **kwargs) -> bool:
-        """Update root product properties."""
+        """
+        Updates root product properties.
+
+        Args:
+            product_id (int): The structural root product target row ID.
+            **kwargs: Dynamic keyword attributes matching valid columns inside 'root_component'.
+
+        Returns:
+            bool: True if an update affected one or more records successfully, False otherwise.
+        """
         allowed = {'name', 'brand', 'model', 'description', 'color_id',
                    'material_id', 'weight', 'weight_unit', 'node_type'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
@@ -380,7 +469,15 @@ class DatabaseManager:
             return cursor.rowcount > 0
 
     def delete_product(self, product_id: int) -> bool:
-        """Delete a root product and all related data."""
+        """
+        Deletes a root product and all related data.
+
+        Args:
+            product_id (int): The target database product row entry to strip.
+
+        Returns:
+            bool: True if structural removal affected records, False otherwise.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM root_component WHERE id = ?', (product_id,))
@@ -389,14 +486,26 @@ class DatabaseManager:
     # ==================== COLOR OPERATIONS ====================
 
     def get_all_colors(self) -> List[Dict[str, Any]]:
-        """Get all colors for dropdown."""
+        """
+        Get all colors for dropdown.
+
+        Returns:
+            List[Dict[str, Any]]: List of dictionary rows detailing names, hex strings, and RGB metadata.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM color ORDER BY name')
             return [dict(row) for row in cursor.fetchall()]
 
     def get_color(self, color_id: int) -> Optional[Dict[str, Any]]:
-        """Get a color by ID."""
+        """
+        Gets a color by ID.
+        Args:
+            color_id (int): Target color entry key.
+
+        Returns:
+            Optional[Dict[str, Any]]: Dictionary containing the matching color fields, or None if missing.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM color WHERE id = ?', (color_id,))
@@ -405,7 +514,19 @@ class DatabaseManager:
 
     def create_color(self, name: str, hex_code: str, rgb_r: int = 0,
                      rgb_g: int = 0, rgb_b: int = 0) -> int:
-        """Create a new color. Returns the color ID."""
+        """
+        Creates a new color and returns its color ID.
+        
+        Args:
+            name (str): Display title for the color record.
+            hex_code (str): Regular hex representation code string (e.g., '#FF0000').
+            rgb_r (int, optional): Red standard integer metric component. Defaults to 0.
+            rgb_g (int, optional): Green standard integer metric component. Defaults to 0.
+            rgb_b (int, optional): Blue standard integer metric component. Defaults to 0.
+
+        Returns:
+            int: The primary key index allocated to the new color entry.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -414,10 +535,35 @@ class DatabaseManager:
             ''', (name, hex_code, rgb_r, rgb_g, rgb_b))
             return cursor.lastrowid
 
+    def delete_color(self, color_id: int) -> bool:
+        """
+        Deletes a color by its ID.
+
+        Args:
+            color_id (int): Primary key identifying the target color record.
+
+        Returns:
+            bool: True if the color record was dropped, False otherwise.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM color WHERE id = ?', (color_id,))
+            return cursor.rowcount > 0
+
     # ==================== MATERIAL OPERATIONS ====================
 
     def create_material(self, name: str, scientific_name: str = "", color_id: int = None) -> int:
-        """Create a material. Returns the material ID."""
+        """
+        Creates a material and returns its material ID.
+
+        Args:
+            name (str): Material visible text title.
+            scientific_name (str, optional): Acronym or commercial technical standard code. Defaults to "".
+            color_id (int, optional): Foreign key linkage pointing to a default color item. Defaults to None.
+
+        Returns:
+            int: Allocated material table entry primary key row index.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -427,7 +573,14 @@ class DatabaseManager:
             return cursor.lastrowid
 
     def get_material(self, material_id: int) -> Optional[Dict[str, Any]]:
-        """Get a material by ID."""
+        """
+        Gets a material by ID.
+        Args:
+            material_id (int): target index code row tracking key.
+
+        Returns:
+            Optional[Dict[str, Any]]: A data map dictionary describing the target material properties if found.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM material WHERE id = ?', (material_id,))
@@ -435,14 +588,30 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def get_all_materials(self) -> List[Dict[str, Any]]:
-        """Get all materials."""
+        """
+        Gets all materials with 'Other' always at the end.
+
+        Returns:
+            List[Dict[str, Any]]: Ordered query trace result list dictionaries.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT * FROM material ORDER BY name')
+            cursor.execute('''
+                SELECT * FROM material ORDER BY (LOWER(name) = 'other') ASC, name ASC
+            ''')
             return [dict(row) for row in cursor.fetchall()]
 
     def update_material(self, material_id: int, **kwargs) -> bool:
-        """Update material properties."""
+        """
+        Updates material properties.
+
+        Args:
+            material_id (int): primary key index defining the targeted material row.
+            **kwargs: Updates list properties containing keys from 'name', 'scientific_name', 'color_id'.
+
+        Returns:
+            bool: True if modification execution updated records, False otherwise.
+        """
         allowed = {'name', 'scientific_name', 'color_id'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -457,7 +626,15 @@ class DatabaseManager:
             return cursor.rowcount > 0
 
     def delete_material(self, material_id: int) -> bool:
-        """Delete a material."""
+        """
+        Deletes a material.
+
+        Args:
+            material_id (int): Target primary index key row tracking identifier.
+
+        Returns:
+            bool: True if structural row subtraction impacted records, False otherwise.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM material WHERE id = ?', (material_id,))
@@ -468,7 +645,26 @@ class DatabaseManager:
     def create_component(self, name: str, product_id: int = None, color_id: int = None,
                          material_id: int = None, weight: float = None, weight_unit: str = "g",
                          node_type: str = "", x: float = 0, y: float = 0) -> int:
-        """Create component in root/intermediate/leaf tables; returns encoded component ID."""
+        """
+        Creates component in root/intermediate/leaf tables; returns encoded component ID.
+
+        Args:
+            name (str): Structural title name of the sub-component.
+            product_id (int, optional): Parent product root component trace key link. Defaults to None.
+            color_id (int, optional): Reference color lookup table target key. Defaults to None.
+            material_id (int, optional): Reference material lookup table target key. Defaults to None.
+            weight (float, optional): Numeric weight metric evaluation score. Defaults to None.
+            weight_unit (str, optional): Text metric weight unit identifier. Defaults to "g".
+            node_type (str, optional): Hierarchy mapping text ('Root', 'Intermediate', 'Leaf'). Defaults to "".
+            x (float, optional): Visual element component canvas layout X metric. Defaults to 0.
+            y (float, optional): Visual element component canvas layout Y metric. Defaults to 0.
+
+        Returns:
+            int: Encoded unified component identifier integer.
+
+        Raises:
+            ValueError: If creating an intermediate or leaf component without a valid parent product_id.
+        """
         normalized = (node_type or "Intermediate").strip().lower()
         if normalized in ("root", "product"):
             table = "root_component"
@@ -497,7 +693,15 @@ class DatabaseManager:
             return self._encode_component_id(table, cursor.lastrowid)
 
     def get_component(self, component_id: int) -> Optional[Dict[str, Any]]:
-        """Get a component by encoded ID with color/material info."""
+        """
+        Gets a component by encoded ID with color/material info.
+
+        Args:
+            component_id (int): Virtual unified component tracking code identifier.
+
+        Returns:
+            Optional[Dict[str, Any]]: Integrated attributes dictionary context map, or None if no record matches.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -520,7 +724,15 @@ class DatabaseManager:
             return data
 
     def get_components_by_product(self, product_id: int) -> List[Dict[str, Any]]:
-        """Get all intermediate+leaf components for a root product."""
+        """
+        Get all intermediate+leaf components for a root product.
+
+        Args:
+            product_id (int): Target parent product identifier root tracing index.
+
+        Returns:
+            List[Dict[str, Any]]: Flat data map array representing all children records attached to the product.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             results: List[Dict[str, Any]] = []
@@ -544,7 +756,15 @@ class DatabaseManager:
             return results
 
     def get_root_component(self, product_id: int) -> Optional[Dict[str, Any]]:
-        """Get root product component."""
+        """
+        Gets root product components.
+
+        Args:
+            product_id (int): Target primary entry product key row index identifier.
+
+        Returns:
+            Optional[Dict[str, Any]]: Root component properties key-value dictionary, or None if missing.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -560,7 +780,16 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def update_component(self, component_id: int, **kwargs) -> bool:
-        """Update component properties."""
+        """
+        Updates component properties.
+        
+        Args:
+            component_id (int): Encoded virtual unified sub-component item tracking ID.
+            **kwargs: Dynamic values matching target table column fields.
+
+        Returns:
+            bool: True if operational database queries changed rows successfully, False otherwise.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         allowed = {'name', 'color_id', 'material_id', 'weight', 'weight_unit', 'node_type'}
         if table_name == "root_component":
@@ -597,7 +826,15 @@ class DatabaseManager:
             return cursor.rowcount > 0
 
     def delete_component(self, component_id: int) -> bool:
-        """Delete a component."""
+        """
+        Deletes a component.
+        
+        Args:
+            component_id (int): Encoded unified item identification code tracking index.
+
+        Returns:
+            bool: True if removal operation processing updated rows, False otherwise.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -609,7 +846,22 @@ class DatabaseManager:
     def create_step(self, component_id: int, step_order: int, description: str = "",
                     image_path: str = "", action_id: int = None, title: str = "",
                     x: float = 0, y: float = 0) -> int:
-        """Create a disassembly step. Returns the step ID."""
+        """
+        Creates a disassembly step and returns its step ID.
+        
+        Args:
+            component_id (int): Virtual unified component track key undergoing disassembly parsing.
+            step_order (int): Chromatic progression ranking integer location trace.
+            description (str, optional): Instruction notes explaining step procedures. Defaults to "".
+            image_path (str, optional): Filesystem route linking reference drawings or snapshots. Defaults to "".
+            action_id (int, optional): Reference database identifier tracking primary action task hooks. Defaults to None.
+            title (str, optional): Brief clear name describing step tasks context. Defaults to "".
+            x (float, optional): Layout canvas element drawing X metric indicator. Defaults to 0.
+            y (float, optional): Layout canvas element drawing Y metric indicator. Defaults to 0.
+
+        Returns:
+            int: Primary tracking identification key index assigned to the newly initialized process step.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         input_root_id = row_id if table_name == "root_component" else None
         input_intermediate_id = row_id if table_name == "intermediate_component" else None
@@ -632,7 +884,15 @@ class DatabaseManager:
             return step_id
 
     def get_next_step_order(self, component_id: int) -> int:
-        """Get next step_order value for a specific input component."""
+        """
+        Gets next step_order value for a specific input component.
+        
+        Args:
+            component_id (int): Virtual unified identifier for the targeted source item record.
+
+        Returns:
+            int: Next logical progression order index sequence number (starts at 1 if none exist).
+        """
         table_name, row_id = self._decode_component_id(component_id)
         if table_name == "root_component":
             input_col = "input_root_component_id"
@@ -655,10 +915,16 @@ class DatabaseManager:
             return int(row[0]) if row and row[0] is not None else 1
 
     def get_next_action_order(self, disassembly_step_id: int) -> int:
-        """Get next action_order value for a specific step.
+        """Gets next action_order value for a specific step.
 
         Deletion does not renumber existing action_order values, so gaps are allowed.
         New actions always append at MAX(action_order) + 1.
+
+        Args:
+            dissasembly_step_id (int): Virtual unified identifier for the targeted source item record.
+
+        Returns:
+            int: Next logical progression order index sequence number.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -674,7 +940,9 @@ class DatabaseManager:
             return int(row[0]) if row and row[0] is not None else 1
 
     def get_component_root_component_id(self, component_id: int) -> Optional[int]:
-        """Resolve the owning root_component for any encoded component id."""
+        """
+        Resolves the owning root_component for any encoded component id.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         if table_name == "root_component":
             return row_id
@@ -747,7 +1015,15 @@ class DatabaseManager:
             }
 
     def get_step(self, step_id: int) -> Optional[Dict[str, Any]]:
-        """Get a step by ID."""
+        """
+        Gets a step by ID.
+        Args:
+            step_id (int): The unique database identifier of the step.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary representing the row data if found, 
+                                      otherwise None.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM disassembly_step WHERE id = ?', (step_id,))
@@ -755,7 +1031,15 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def get_step_for_component(self, component_id: int) -> Optional[Dict[str, Any]]:
-        """Get the disassembly step for a component (1:1)."""
+        """
+        Gets the disassembly step for a component (1:1).
+
+        Args:
+            component_id (int): Encoded composite or raw ID of the parent component.
+
+        Returns:
+            Optional[Dict[str, Any]]: Step dictionary if matching record exists, else None.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         if table_name == "root_component":
             where_clause = "input_root_component_id = ?"
@@ -774,7 +1058,16 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def update_step(self, step_id: int, **kwargs) -> bool:
-        """Update step properties."""
+        """
+        Updates step properties.
+        
+        Args:
+            step_id (int): Target step row index.
+            **kwargs: Arbitrary keyword arguments corresponding to editable schema keys.
+
+        Returns:
+            bool: True if any matching rows were updated or synchronized, False otherwise.
+        """
         allowed = {'component_id', 'step_order', 'title', 'description', 'image_path', 'action_id'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -808,7 +1101,15 @@ class DatabaseManager:
             return rowcount > 0
 
     def delete_step(self, step_id: int) -> bool:
-        """Delete a step."""
+        """
+        Deletes a step.
+        
+        Args:
+            step_id (int): Step primary key index.
+
+        Returns:
+            bool: True if a row was matched and deleted, False otherwise.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM disassembly_step WHERE id = ?', (step_id,))
@@ -817,7 +1118,16 @@ class DatabaseManager:
     # ==================== STEP OUTPUT OPERATIONS ====================
 
     def add_component_to_step(self, disassembly_step_id: int, component_id: int) -> Dict[str, Any]:
-        """Add a component as output of a step (1:N relationship)."""
+        """
+        Adds a component as output of a step (1:N relationship).
+        
+        Args:
+            disassembly_step_id (int): Parent flowchart step identifier.
+            component_id (int): Encoded child component identifier.
+
+        Returns:
+            Dict[str, Any]: Trace metadata tracking the assigned link index and duplicate status.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         step_root_id = self.get_step_root_component_id(disassembly_step_id)
         component_root_id = self.get_component_root_component_id(component_id)
@@ -856,7 +1166,15 @@ class DatabaseManager:
                 raise ValueError("Root component cannot be an output component for a step")
 
     def get_components_from_step(self, disassembly_step_id: int) -> List[Dict[str, Any]]:
-        """Get all components produced by a step (1:N)."""
+        """
+        Gets all components produced by a step (1:N).
+        
+        Args:
+            disassembly_step_id (int): Target parent step.
+
+        Returns:
+            List[Dict[str, Any]]: Flat collection of fully annotated component dictionaries.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             results: List[Dict[str, Any]] = []
@@ -898,7 +1216,16 @@ class DatabaseManager:
             return results
 
     def remove_component_from_step(self, disassembly_step_id: int, component_id: int) -> bool:
-        """Remove a component from a step."""
+        """
+        Removes a component from a step.
+        
+        Args:
+            disassembly_step_id (int): Parent step identifier.
+            component_id (int): Encoded target child component index.
+
+        Returns:
+            bool: True if the junction entry was found and purged, False otherwise.
+        """
         table_name, row_id = self._decode_component_id(component_id)
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -920,7 +1247,17 @@ class DatabaseManager:
 
     def create_action(self, name: str, description: str = "", tool_id: int = None,
                       next_action_id: int = None, x: float = 0, y: float = 0) -> int:
-        """Create an action. Returns the action ID."""
+        """
+        Creates an action and returns its action ID.
+        
+        Args:
+            name (str): Label string representing the activity (e.g., "Unscrew").
+            description (str): Verbose documentation notes detailing the step execution.
+            tool_id (Optional[int]): Database primary index reference for a linked tool.
+
+        Returns:
+            int: The primary key ID of the newly generated action record.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -930,7 +1267,15 @@ class DatabaseManager:
             return cursor.lastrowid
 
     def get_action(self, action_id: int) -> Optional[Dict[str, Any]]:
-        """Get an action by ID with tool info."""
+        """
+        Gets an action by ID with tool info.
+        
+        Args:
+            action_id (int): Action primary key index.
+
+        Returns:
+            Optional[Dict[str, Any]]: Joined action and tool attribute map, or None.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -943,12 +1288,29 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def get_action_chain(self, action_id: int) -> List[Dict[str, Any]]:
-        """Compatibility helper: returns one action as chain head."""
+        """
+        Compatibility helper: returns one action as chain head.
+        
+        Args:
+            action_id (int): The unique ID of the action to retrieve.
+
+        Returns:
+            List[Dict[str, Any]]: A list containing the action dictionary if found, otherwise an empty list.
+        """
         action = self.get_action(action_id)
         return [action] if action else []
 
     def update_action(self, action_id: int, **kwargs) -> bool:
-        """Update action properties."""
+        """
+        Updates action properties.
+        
+        Args:
+            action_id (int): Action database identifier.
+            **kwargs: Configuration dictionary matching allowed keys ('name', 'description', 'tool_id').
+
+        Returns:
+            bool: True if an action row was successfully modified, False otherwise.
+        """
         allowed = {'name', 'description', 'tool_id'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -963,7 +1325,15 @@ class DatabaseManager:
             return cursor.rowcount > 0
 
     def delete_action(self, action_id: int) -> bool:
-        """Delete an action."""
+        """
+        Deletes an action.
+        
+        Args:
+            action_id (int): Target action index.
+
+        Returns:
+            bool: True if row match successfully purged, False otherwise.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM action WHERE id = ?', (action_id,))
@@ -972,7 +1342,16 @@ class DatabaseManager:
     # ==================== TOOL OPERATIONS ====================
 
     def create_tool(self, name: str, category: str = "") -> int:
-        """Create a tool. Returns the tool ID."""
+        """
+        Creates a tool and returns the tool ID.
+        
+        Args:
+            name (str): Unique text identifier for the tool (e.g., "T20 Torx Screwdriver").
+            category (str): Optional tracking group tag string.
+
+        Returns:
+            int: Verified primary key index pointing to the unique tool item.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -984,7 +1363,15 @@ class DatabaseManager:
             return cursor.fetchone()[0]
 
     def get_tool(self, tool_id: int) -> Optional[Dict[str, Any]]:
-        """Get a tool by ID."""
+        """
+        Gets a tool by ID.
+        
+        Args:
+            tool_id (int): The primary key of the tool in the database.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary representing the tool data if found, or None if no record matches.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM tool WHERE id = ?', (tool_id,))
@@ -992,14 +1379,27 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def get_all_tools(self) -> List[Dict[str, Any]]:
-        """Get all tools."""
+        """
+        Gets all tools.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries representing all tools.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM tool ORDER BY category, name')
             return [dict(row) for row in cursor.fetchall()]
 
     def delete_tool(self, tool_id: int) -> bool:
-        """Delete a tool."""
+        """
+        Deletes a tool.
+        
+        Args:
+            tool_id (int): The primary key of the tool to be deleted.
+
+        Returns:
+            bool: True if the tool existed and was successfully deleted, False otherwise.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM tool WHERE id = ?', (tool_id,))
@@ -1008,7 +1408,15 @@ class DatabaseManager:
     # ==================== TABLE SCHEMA (for dynamic UI) ====================
 
     def get_table_schema(self, table_name: str) -> List[Dict[str, Any]]:
-        """Get the schema of a table for dynamic UI generation."""
+        """
+        Gets the schema of a table for dynamic UI generation.
+        
+        Args:
+            table_name (str): Exact target catalog name string being evaluated.
+
+        Returns:
+            List[Dict[str, Any]]: Schema metrics tracking collection arrays documenting item configurations.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(f"PRAGMA table_info({table_name})")
@@ -1025,7 +1433,15 @@ class DatabaseManager:
             return columns
 
     def get_component_fields(self, component_kind: str = "intermediate") -> List[Dict[str, Any]]:
-        """Get editable fields for component tables (root/intermediate/leaf)."""
+        """
+        Gets editable fields for component tables (root/intermediate/leaf).
+        
+        Args:
+            component_kind (str): String identifier ('root', 'intermediate', or 'leaf').
+
+        Returns:
+            List[Dict[str, Any]]: Collection tracking arrays describing entry column fields.
+        """
         kind = (component_kind or "intermediate").strip().lower()
         if kind == "root":
             table_name = "root_component"
@@ -1054,7 +1470,12 @@ class DatabaseManager:
         return editable_fields
 
     def get_product_fields(self) -> List[Dict[str, Any]]:
-        """Get editable fields for product table."""
+        """
+        Gets editable fields for product table.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of column schemas filtered and configured for UI rendering.
+        """
         all_columns = self.get_table_schema('root_component')
         exclude = {'id', 'created_at', 'modified_at', 'node_type'}
 
@@ -1066,7 +1487,12 @@ class DatabaseManager:
         return editable_fields
 
     def get_action_fields(self) -> List[Dict[str, Any]]:
-        """Get editable fields for action table."""
+        """
+        Gets editable fields for action table.
+        
+        Returns:
+            List[Dict[str, Any]]: Field definitions configured for the Action UI panel.
+        """
         all_columns = self.get_table_schema('action')
         exclude = {'id'}
 
@@ -1081,7 +1507,12 @@ class DatabaseManager:
         return editable_fields
 
     def get_step_fields(self) -> List[Dict[str, Any]]:
-        """Get editable fields for disassembly_step table."""
+        """
+        Gets editable fields for disassembly_step table.
+
+        Returns:
+            List[Dict[str, Any]]: Field definitions configured for the Disassembly Step UI form.
+        """
         all_columns = self.get_table_schema('disassembly_step')
         # step_order is auto-managed by database, should not be editable
         exclude = {'id', 'input_root_component_id', 'input_intermediate_component_id', 
@@ -1098,7 +1529,12 @@ class DatabaseManager:
         return editable_fields
         
     def get_material_fields(self) -> List[Dict[str, Any]]:
-        """Get editable fields for material table."""
+        """
+        Gets editable fields for material table.
+        
+        Returns:
+            List[Dict[str, Any]]: Field definitions configured for the Material UI form.
+        """
         all_columns = self.get_table_schema('material')
         exclude = {'id'}
 
@@ -1115,7 +1551,12 @@ class DatabaseManager:
     # ==================== STATISTICS ====================
 
     def get_statistics(self) -> Dict[str, Any]:
-        """Get database statistics."""
+        """
+        Gets database statistics.
+
+        Returns:
+            Dict[str, Any]: Map trace linking table metadata keys to integer row quantities.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
@@ -1137,7 +1578,15 @@ class DatabaseManager:
 _default_db = None
 
 def get_database(db_path: str = None) -> DatabaseManager:
-    """Get or create the default database manager."""
+    """
+    Gets or creates the default database manager.
+    
+    Args:
+        db_path (str, optional): Overriding target absolute route filesystem database path. Defaults to None.
+
+    Returns:
+        DatabaseManager: Active singleton instance entity managing application transactions.
+    """
     global _default_db
     if _default_db is None or (db_path and _default_db.db_path != db_path):
         _default_db = DatabaseManager(db_path)
