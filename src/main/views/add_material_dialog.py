@@ -2,7 +2,23 @@ import tkinter as tk
 from tkinter import ttk
 
 class AddMaterialDialog(tk.Toplevel):
+    """
+    A modal dialog window that allows users to register a new material entry.
+    
+    Provides entry fields for the material's common name and scientific name, 
+    and incorporates a read-only Combobox drop-down dynamically populated with 
+    pre-existing color entries fetched from the database layer.
+    """
+
     def __init__(self, parent, controller):
+        """
+        Initializes the dialog view, fetches reference data from the database,
+        binds input reactive variables and builds the graphical grid layout.
+
+        Args:
+            parent (tk.Misc): The parent container or main window launching this dialog.
+            controller (any): The application controller handling data delegation and models.
+        """
         super().__init__(parent)
         self.transient(parent)
         self.title("Add New Material")
@@ -39,13 +55,18 @@ class AddMaterialDialog(tk.Toplevel):
         self.wait_window(self)
 
     def on_save(self):
+        """
+        Validates input constraints, maps descriptive combobox labels back to 
+        relational database primary key integers and dispatches structural changes 
+        to the orchestrating application controller.
+        """
         name = self.name_var.get()
         sci_name = self.sci_name_var.get()
         color_name = self.color_var.get()
         color_id = self.color_map.get(color_name)
 
         if not name:
-            # In a real app, you'd show a proper error message
+            # In a real app, you would show a proper error message
             print("Error: Material Name is required.")
             return
 
@@ -53,5 +74,5 @@ class AddMaterialDialog(tk.Toplevel):
             self.controller.add_new_material(name, sci_name, color_id)
             self.destroy()
         except Exception as e:
-            # In a real app, you'd show a proper error message
+            # In a real app, you whould show a proper error message
             print(f"Error saving material: {e}")

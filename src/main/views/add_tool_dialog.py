@@ -2,7 +2,23 @@ import tkinter as tk
 from tkinter import ttk
 
 class AddToolDialog(tk.Toplevel):
+    """
+    A modal dialog window that allows users to register a new mechanical tool 
+    or equipment asset into the global system catalog.
+    
+    Provides simple form layout entries to collect a tool name and its 
+    associated operational category classification.
+    """
+
     def __init__(self, parent, controller):
+        """
+        Initializes the top-level dialog, maps internal controller pointers, 
+        constructs the component input fields and locks UI input focus.
+
+        Args:
+            parent (tk.Misc): The parent widget or window shell nesting this popup.
+            controller (any): The core application controller driving system flow.
+        """
         super().__init__(parent)
         self.transient(parent)
         self.title("Add New Tool")
@@ -32,10 +48,15 @@ class AddToolDialog(tk.Toplevel):
         self.wait_window(self)
 
     def on_save(self):
+        """
+        Validates form inputs, trims unnecessary padding whitespaces and 
+        commands the backend system architecture to persist the new asset record.
+        """
         name = self.name_var.get()
         category = self.category_var.get()
 
         if not name:
+            # In a real app, you would show a proper error message
             print("Error: Tool Name is required.")
             return
 
@@ -43,4 +64,5 @@ class AddToolDialog(tk.Toplevel):
             self.controller.add_new_tool(name, category)
             self.destroy()
         except Exception as e:
+            # In a real app, you would show a proper error message
             print(f"Error saving tool: {e}")

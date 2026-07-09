@@ -10,16 +10,19 @@ from ..views.add_material_dialog import AddMaterialDialog
 from ..views.add_tool_dialog import AddToolDialog
 from ..utils import (
     CommandHistory, AddShapeCommand, RemoveShapeCommand, MoveShapeCommand,
-    AddConnectionCommand, EditShapePropertiesCommand, snap_to_grid,
+    AddConnectionCommand, EditShapePropertiesCommand, MultiCommand, snap_to_grid,
     find_alignment_guides, DiagramSerializer
 )
 from ..utils.diagram_loader import DiagramLoader
 from ..utils.json_exporter import EnhancedJSONExporter
+from ..views.manage_colors_dialog import ManageColorsDialog
+from ..views.manage_materials_dialog import ManageMaterialsDialog
 
 
 class AppController:
 
     def __init__(self):
+        """Initialize controller state, models and helper services."""
         self.diagram = Diagram()
         self.command_history = CommandHistory()
         self.view = None
@@ -38,10 +41,12 @@ class AppController:
         self.preview_line_id = None
 
     def set_view(self, view):
+        """Attach the view and wire up canvas event bindings."""
         self.view = view
         self._bind_canvas_events()
 
     def _bind_canvas_events(self):
+        """Bind mouse, keyboard and scroll events to the canvas."""
         canvas = self.view.canvas
         canvas.bind("<Button-1>", self.on_canvas_click)
         canvas.bind("<B1-Motion>", self.on_canvas_drag)
@@ -55,6 +60,7 @@ class AppController:
         canvas.bind("<Shift-MouseWheel>", self.on_shift_mouse_wheel)
 
     def on_mouse_wheel(self, event):
+        """Scroll the canvas vertically with the mouse wheel."""
         if event.num == 4:
             self.view.canvas.yview_scroll(-1, "units")
         elif event.num == 5:
@@ -63,6 +69,7 @@ class AppController:
             self.view.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def on_shift_mouse_wheel(self, event):
+        """Scroll the canvas horizontally with Shift + mouse wheel."""
         self.view.canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def on_canvas_motion(self, event):
@@ -103,6 +110,7 @@ class AppController:
             self.view.root.after(1500, lambda: self.view.set_status("Ready"))
 
     def on_canvas_click(self, event):
+        """Handle left-click: select a shape, start a drag, or start a connection."""
         x = self.view.canvas.canvasx(event.x)
         y = self.view.canvas.canvasy(event.y)
         clicked_shape = self.diagram.find_shape_at_point(x, y)
@@ -132,6 +140,7 @@ class AppController:
         self._update_view()
 
     def on_canvas_drag(self, event):
+        """Move the selected shapes as the mouse is dragged."""
         if not self.dragging or not self.drag_shapes:
             return
 
@@ -141,6 +150,15 @@ class AppController:
         y = self.view.canvas.canvasy(event.y)
         dx = x - self.drag_start[0]
         dy = y - self.drag_start[1]
+
+        # Prevent dragging shapes into negative coords, where they'd hide behind the
+        # left panel / above the canvas and be unreachable (only CTRL+Z could recover them).
+        min_x1 = min(s.get_bounds()[0] for s in self.drag_shapes)
+        min_y1 = min(s.get_bounds()[1] for s in self.drag_shapes)
+        if min_x1 + dx < 0:
+            dx = -min_x1
+        if min_y1 + dy < 0:
+            dy = -min_y1
 
         # Move each shape freely during drag (no snapping)
         for shape in self.drag_shapes:
@@ -186,6 +204,7 @@ class AppController:
             canvas.yview_scroll(-1, "units")
 
     def on_canvas_release(self, event):
+        """Finish a drag: snap, record the move command and redraw."""
         if self.dragging and self.drag_shapes and self.drag_initial_positions:
             # Snap to grid on release if enabled
             if self.diagram.snap_to_grid:
@@ -214,6 +233,7 @@ class AppController:
         self._update_view()
 
     def on_canvas_right_click(self, event):
+        """Show the context menu for the shape under the cursor."""
         x = self.view.canvas.canvasx(event.x)
         y = self.view.canvas.canvasy(event.y)
         clicked_shape = self.diagram.find_shape_at_point(x, y)
@@ -227,6 +247,7 @@ class AppController:
             self._show_context_menu(event, clicked_shape)
 
     def _show_context_menu(self, event, shape):
+        """Build and display the right-click context menu for a shape."""
         menu = tk.Menu(self.view.root, tearoff=0)
         menu.add_command(label="Edit Properties", command=lambda: self._edit_shape_properties(shape))
         menu.add_separator()
@@ -235,6 +256,7 @@ class AppController:
         menu.post(event.x_root, event.y_root)
 
     def _handle_arrow_connection_click(self, shape):
+        """Pick source then target shape to create an arrow in arrow mode."""
         # Also select the shape so Delete key works
         self.diagram.select_shape(shape, multi_select=False)
         self._update_view()
@@ -258,6 +280,7 @@ class AppController:
             self._update_view()
 
     def _handle_connection_click(self, shape):
+        """Pick source then target shape to create a connection in connect mode."""
         if self.connecting_from is None:
             self.connecting_from = shape
             self.view.set_status(f"Connection started from {shape.shape_type}. Click target shape or press ESC to cancel.")
@@ -273,6 +296,7 @@ class AppController:
             self.view.root.after(2000, lambda: self.view.set_status("Ready"))
 
     def _create_arrow_connection(self, from_shape, to_shape):
+        """Create an arrow shape between two shapes and sync it to the DB."""
         arrow = ArrowShape(0, 0, from_shape, to_shape)
         arrow.update_from_shapes()
         command = AddShapeCommand(self.diagram, arrow)
@@ -281,6 +305,7 @@ class AppController:
         self._update_view()
 
     def _create_connection(self, from_shape, to_shape):
+        """Create a connection between two shapes and sync it to the DB."""
         connection = Connection(from_shape, to_shape)
         connection.auto_calculate_anchors()
         command = AddConnectionCommand(self.diagram, connection)
@@ -350,6 +375,7 @@ class AppController:
             self.view.set_status(f"DB sync warning: {exc}")
 
     def _ensure_component_db_id(self, shape: ComponentBox) -> Optional[int]:
+        """Return the component's DB id, creating the DB row if needed."""
         db_id = shape.properties.get("db_id")
         if db_id:
             return int(db_id)
@@ -394,6 +420,7 @@ class AppController:
         return comp_id
 
     def _get_root_component_id(self) -> Optional[int]:
+        """Return the DB id of the diagram's root component, if any."""
         for shape in self.diagram.shapes:
             if isinstance(shape, ComponentBox):
                 node_type = str(shape.properties.get("node_type", "")).strip().lower()
@@ -402,6 +429,7 @@ class AppController:
         return None
 
     def _ensure_step_db_id(self, step_shape: ActionCircle, input_shape: Optional[ComponentBox] = None) -> Optional[int]:
+        """Return the step's DB id, creating the DB row if needed."""
         step_id = getattr(step_shape, "db_step_id", None)
         if input_shape is None:
             input_shape = self._resolve_input_shape_for_step(step_shape)
@@ -441,6 +469,7 @@ class AppController:
         return step_id
 
     def _resolve_input_shape_for_step(self, step_shape: ActionCircle) -> Optional[ComponentBox]:
+        """Find the component feeding into a step, falling back to the root."""
         for conn in self.diagram.connections:
             if conn.to_shape == step_shape and isinstance(conn.from_shape, ComponentBox):
                 return conn.from_shape
@@ -451,6 +480,7 @@ class AppController:
         return None
 
     def _ensure_action_db_id(self, action_shape: DiamondStep) -> Optional[int]:
+        """Return the action's DB id, creating the DB row if needed."""
         action_id = getattr(action_shape, "db_action_id", None)
         if action_id:
             return int(action_id)
@@ -469,6 +499,7 @@ class AppController:
         return action_id
 
     def _resolve_step_id_for_diamond(self, diamond_shape: DiamondStep) -> Optional[int]:
+        """Return the step a diamond belongs to, inferring from connections."""
         step_id = getattr(diamond_shape, "db_step_id", None)
         if step_id:
             return int(step_id)
@@ -483,10 +514,12 @@ class AppController:
         return None
 
     def _edit_shape_properties(self, shape):
+        """Select a shape so its properties show in the panel."""
         self.diagram.select_shape(shape, multi_select=False)
         self._update_view()
 
     def _duplicate_shape(self, shape):
+        """Create a copy of a shape offset from the original."""
         new_shape = self._create_shape_instance(shape.shape_type, shape.x + 50, shape.y + 50)
         new_shape.text = shape.text
 
@@ -507,30 +540,26 @@ class AppController:
         self.view.set_status(f"Duplicated {shape.shape_type}")
 
     def _delete_shape(self, shape):
-        if self._is_shape_connected(shape):
-            self.view.set_status("Cannot delete: shape is connected. Remove arrows/connections first.")
-            return
-
+        """Delete a shape, removing any arrows/connections attached to it."""
         if not self._delete_shape_from_db(shape):
             return
 
-        command = RemoveShapeCommand(self.diagram, shape)
-        self.command_history.execute(command)
+        commands = [RemoveShapeCommand(self.diagram, arrow)
+                    for arrow in self._get_attached_arrows(shape)]
+        commands.append(RemoveShapeCommand(self.diagram, shape))
+        if len(commands) == 1:
+            self.command_history.execute(commands[0])
+        else:
+            self.command_history.execute(MultiCommand(commands, f"Remove {shape.shape_type}"))
         self._update_view()
         self.view.set_status(f"Deleted {shape.shape_type}")
 
-    def _is_shape_connected(self, shape) -> bool:
-        """Return True if shape is linked via connection lines or arrow shapes."""
+    def _get_attached_arrows(self, shape) -> list:
+        """Return the arrow shapes whose endpoints reference the given shape."""
         if isinstance(shape, ArrowShape):
-            return False
-
-        if self.diagram.get_connections_for_shape(shape):
-            return True
-
-        for s in self.diagram.shapes:
-            if isinstance(s, ArrowShape) and (s.from_shape == shape or s.to_shape == shape):
-                return True
-        return False
+            return []
+        return [s for s in self.diagram.shapes
+                if isinstance(s, ArrowShape) and (s.from_shape == shape or s.to_shape == shape)]
 
     def _delete_shape_from_db(self, shape) -> bool:
         """Delete corresponding DB entity for a shape if it exists.
@@ -560,11 +589,13 @@ class AppController:
             return False
 
     def _start_connection_from(self, shape):
+        """Enter connect mode starting from the given shape."""
         self.connect_mode = True
         self.connecting_from = shape
         self.view.set_status(f"Connection started from {shape.shape_type}. Click target shape.")
 
     def add_shape(self, shape_type: str):
+        """Add a new shape of the given type to the diagram."""
         if shape_type == "product":
             shape_type = "component_root"
 
@@ -640,6 +671,7 @@ class AppController:
         return x, y
 
     def _create_shape_instance(self, shape_type: str, x: float, y: float):
+        """Create a shape object of the given type at (x, y)."""
         if shape_type == "action":
             return ActionCircle(x, y)
         elif shape_type == "diamond":
@@ -652,6 +684,7 @@ class AppController:
             raise ValueError(f"Unknown shape type: {shape_type}")
 
     def delete_selected(self):
+        """Delete all currently selected shapes along with their arrows/connections."""
         if not self.diagram.selected_shapes:
             self.view.set_status("No shapes selected")
             return
@@ -663,29 +696,36 @@ class AppController:
             self.connecting_from = None
 
         selected = list(self.diagram.selected_shapes)
-        blocked = [shape for shape in selected if self._is_shape_connected(shape)]
-        if blocked:
-            self.view.set_status("Cannot delete connected shape(s). Remove arrows/connections first.")
-            return
 
         for shape in selected:
             if not self._delete_shape_from_db(shape):
                 return
 
+        to_delete = []
         for shape in selected:
-            command = RemoveShapeCommand(self.diagram, shape)
-            self.command_history.execute(command)
+            for arrow in self._get_attached_arrows(shape):
+                if arrow not in to_delete and arrow not in selected:
+                    to_delete.append(arrow)
+        to_delete.extend(selected)
+
+        commands = [RemoveShapeCommand(self.diagram, shape) for shape in to_delete]
+        if len(commands) == 1:
+            self.command_history.execute(commands[0])
+        else:
+            self.command_history.execute(MultiCommand(commands, "Remove selected shapes"))
 
         self._update_view()
         self.view.set_status("Deleted selected shapes")
 
     def select_all(self):
+        """Select every shape in the diagram."""
         for shape in self.diagram.shapes:
             self.diagram.select_shape(shape, multi_select=True)
         self._update_view()
         self.view.set_status(f"Selected {len(self.diagram.shapes)} shapes")
 
     def toggle_connect_mode(self):
+        """Turn connection mode on or off."""
         self.connect_mode = not self.connect_mode
         self.connecting_from = None
 
@@ -698,6 +738,7 @@ class AppController:
             self.view.root.after(1500, lambda: self.view.set_status("Ready"))
 
     def apply_properties(self, shape, old_properties, new_properties):
+        """Apply edited properties to a shape and persist them to the DB."""
         command = EditShapePropertiesCommand(shape, old_properties, new_properties)
         self.command_history.execute(command)
         self._persist_shape_properties(shape)
@@ -728,9 +769,28 @@ class AppController:
             component_id = self._ensure_component_db_id(shape)
             updates = dict(shape.properties)
             updates.pop("db_id", None)
-            self.db.update_component(int(component_id), **updates)
+
+            safe_updates = {k: v for k, v in updates.items() if not (k == 'root_component_id' and (v is None or str(v).strip() in ('', 'None')))}
+            self.db.update_component(int(component_id), **safe_updates)
             shape.properties["db_id"] = int(component_id)
-            return
+            
+        if 'root_component_id' in updates:
+            val = updates['root_component_id']
+            node_type = shape.properties.get('node_type', '')
+            
+            if node_type == 'Root':
+                updates['root_component_id'] = ""
+            else:
+                # For Leaf or Composite nodes, if the value comes as None or "None",
+                # try to salvage the actual ID stored in the object's memory.
+                if val is None or str(val).strip() in ('', 'None'):
+                    real_id = shape.properties.get('root_component_id')
+                    if real_id and str(real_id).strip() not in ('', 'None'):
+                        updates['root_component_id'] = int(real_id)
+                    else:
+                        # If there is absolutely no real ID, send "" so the DB
+                        # triggers its 'else None' and avoids throwing a TypeError
+                        updates['root_component_id'] = ""
 
         if isinstance(shape, ActionCircle):
             try:
@@ -757,6 +817,7 @@ class AppController:
             shape.db_action_id = int(action_id)
 
     def undo(self):
+        """Undo the last command."""
         if self.command_history.undo():
             self._update_view()
             self.view.set_status(f"Undone: {self.command_history.get_redo_description()}")
@@ -764,6 +825,7 @@ class AppController:
             self.view.set_status("Nothing to undo")
 
     def redo(self):
+        """Redo the last undone command."""
         if self.command_history.redo():
             self._update_view()
             self.view.set_status(f"Redone: {self.command_history.get_undo_description()}")
@@ -771,27 +833,65 @@ class AppController:
             self.view.set_status("Nothing to redo")
 
     def can_undo(self) -> bool:
+        """Return True if there is a command to undo."""
         return self.command_history.can_undo()
 
     def can_redo(self) -> bool:
+        """Return True if there is a command to redo."""
         return self.command_history.can_redo()
 
     def toggle_grid(self):
+        """Toggle the canvas grid display."""
         self.view.canvas.toggle_grid()
         self.view.set_status(f"Grid: {'on' if self.view.canvas.show_grid else 'off'}")
 
+    def toggle_snap_mode(self):
+        self.diagram.snap_to_grid = not self.diagram.snap_to_grid
+
+        if hasattr(self.view.canvas, 'snap_to_grid'):
+            self.view.canvas.snap_to_grid = self.diagram.snap_to_grid
+
+        self.view.update_snap_button(snap_enabled=self.diagram.snap_to_grid)
+
+        if self.diagram.snap_to_grid:
+            self.view.set_status("Snap to grid: on")
+        else:
+            self.view.set_status("Snap to grid: off")
+            
+        self._update_view()
+
     def toggle_snap(self):
+        """Toggle snap-to-grid for shape positioning."""
         self.diagram.snap_to_grid = not self.diagram.snap_to_grid
         self.view.set_status(f"Snap to grid: {'on' if self.diagram.snap_to_grid else 'off'}")
 
     def zoom_in(self):
-        self.view.set_status("Zoom in (not yet implemented)")
+        """
+        Event handler triggered by the 'Zoom In' action shortcut.
+        Instructs the view canvas component to perform the upscale algorithm 
+        and updates the status bar message with the live zoom percentage.
+        """
+        
+        self.view.canvas.zoom_in()
+        self.view.set_status(f"Zoom: {int(self.view.canvas.zoom_factor * 100)}%")
 
     def zoom_out(self):
-        self.view.set_status("Zoom out (not yet implemented)")
+        """
+        Event handler triggered by the 'Zoom Out' action shortcut.
+        Instructs the view canvas component to perform the downscale algorithm 
+        and updates the status bar message with the live zoom percentage.
+        """
+        self.view.canvas.zoom_out()
+        self.view.set_status(f"Zoom: {int(self.view.canvas.zoom_factor * 100)}%")
 
     def reset_zoom(self):
-        self.view.set_status("Reset zoom (not yet implemented)")
+        """
+        Event handler triggered to restore default sizing.
+        Resets the canvas view back to 100% scale and updates the status bar text.
+        """
+        self.view.canvas.reset_zoom()
+        self.view.set_status("Zoom: 100%")
+
 
     def new_diagram(self):
         """Create a new diagram. Existing database entries are preserved."""
@@ -806,6 +906,7 @@ class AppController:
         self.view.set_status("New diagram created (Database preserved - use 'Load Product' to see saved diagrams)")
 
     def open_diagram(self):
+        """Load a diagram from a JSON file chosen by the user."""
         if not self.check_unsaved_changes():
             return
 
@@ -867,7 +968,12 @@ class AppController:
             return False
 
     def clear_canvas(self):
+        """Remove all shapes from the canvas after confirmation."""
         if not self.diagram.shapes:
+            # Even with an empty canvas the command history may still hold
+            # undoable commands (e.g. deletions), so reset it anyway.
+            self.command_history.clear()
+            self._update_view()
             self.view.set_status("Canvas is already empty")
             return
 
@@ -883,6 +989,7 @@ class AppController:
         self.view.set_status("Canvas cleared")
 
     def check_unsaved_changes(self) -> bool:
+        """Prompt to save unsaved changes; return False to cancel the action."""
         if not self.diagram.modified:
             return True
 
@@ -896,30 +1003,72 @@ class AppController:
             return False
 
     def show_add_color_dialog(self):
+        """Open the dialog for adding a new color."""
         AddColorDialog(self.view.root, self)
 
+    def show_manage_colors_dialog(self):
+        """Open the dialog for managing colors."""
+        ManageColorsDialog(self.view.root, self)
+
     def add_new_color(self, name, hex_code, r, g, b):
+        """Create a new color in the DB and refresh the panel."""
         self.db.create_color(name, hex_code, r, g, b)
         self.view.refresh_properties_panel()
         self.view.set_status(f"Added new color: {name}")
 
+    def delete_color(self, color_id: int) -> bool:
+        """Deletes a color and refreshes the properties panel if needed."""
+        try:
+            success = self.db.delete_color(color_id)
+            if success:
+                # If the property panel is open, we refresh it
+                if hasattr(self.view, 'refresh_properties_panel'):
+                    self.view.refresh_properties_panel()
+            return success
+        except sqlite3.IntegrityError:
+            raise ValueError("The color cannot be deleted because it is already assigned to a component.")
+        except Exception as e:
+            raise Exception(f"Error when deleting the color: {e}")
+
     def show_add_material_dialog(self):
+        """Open the dialog for adding a new material."""
         AddMaterialDialog(self.view.root, self)
 
+    def show_manage_materials_dialog(self):
+        """Open the dialog for managing materials."""
+        ManageMaterialsDialog(self.view.root, self)
+
     def add_new_material(self, name, sci_name, color_id):
+        """Create a new material in the DB and refresh the panel."""
         self.db.create_material(name, sci_name, color_id)
         self.view.refresh_properties_panel()
         self.view.set_status(f"Added new material: {name}")
 
+    def delete_material(self, material_id: int) -> bool:
+        """Deletes a material and refreshes the view."""
+        try:
+            success = self.db.delete_material(material_id)
+            if success:
+                if hasattr(self.view, 'refresh_properties_panel'):
+                    self.view.refresh_properties_panel()
+            return success
+        except sqlite3.IntegrityError:
+            raise ValueError("The material cannot be deleted because it is already assigned to a component.")
+        except Exception as e:
+            raise Exception(f"Error when deleting a material: {e}")
+
     def show_add_tool_dialog(self):
+        """Open the dialog for adding a new tool."""
         AddToolDialog(self.view.root, self)
 
     def add_new_tool(self, name, category):
+        """Create a new tool in the DB and refresh the panel."""
         self.db.create_tool(name, category)
         self.view.refresh_properties_panel()
         self.view.set_status(f"Added new tool: {name}")
 
     def _update_view(self):
+        """Redraw the canvas and sync the properties panel with the selection."""
         self.view.canvas.redraw_all(self.diagram)
 
         if len(self.diagram.selected_shapes) == 1:

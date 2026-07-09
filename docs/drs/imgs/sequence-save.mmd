@@ -1,0 +1,18 @@
+sequenceDiagram
+    actor User
+    participant Win as MainWindow
+    participant Ctrl as AppController
+    participant Diag as Diagram
+    participant Ser as DiagramSerializer
+    participant FS as File System
+
+    User->>Win: select Save / Export to JSON
+    Win->>Ctrl: save_diagram()
+    Ctrl->>Diag: to_dict() (loop shapes & connections)
+    Diag-->>Ctrl: structured data map
+    Ctrl->>Ser: save_to_file(diagram, path)
+    Ser->>FS: write JSON text
+    FS-->>Ser: success
+    Ser-->>Ctrl: True
+    Ctrl->>Diag: modified = False
+    Ctrl->>Win: set_status("Saved: ...")

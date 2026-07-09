@@ -1,0 +1,9 @@
+flowchart LR
+    s([Start]) --> clk["User clicks a<br/>palette shape button"]
+    clk --> create["AppController creates<br/>the Shape instance"]
+    create --> pos["Compute grid position<br/>and snap to grid"]
+    pos --> cmd["Wrap action in<br/>AddShapeCommand"]
+    cmd --> exec["CommandHistory.execute<br/>adds shape to Diagram"]
+    exec --> draw["DiagramCanvas.redraw_all<br/>renders the diagram"]
+    draw --> stat["Update status bar<br/>and shape count"]
+    stat --> done([End])

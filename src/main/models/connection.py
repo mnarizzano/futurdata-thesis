@@ -9,6 +9,7 @@ class Connection:
                  connection_type: str = "solid",
                  from_anchor: str = "bottom",
                  to_anchor: str = "top"):
+        """Initialize a connection between two shapes with anchor points."""
         Connection._id_counter += 1
         self.id = Connection._id_counter
         self.from_shape = from_shape
@@ -20,9 +21,11 @@ class Connection:
 
     @classmethod
     def reset_counter(cls):
+        """Reset the connection id counter."""
         cls._id_counter = 0
 
     def get_endpoints(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Return the start and end coordinates of the connection."""
         from_points = self.from_shape.get_connection_points()
         to_points = self.to_shape.get_connection_points()
         start = from_points.get(self.from_anchor, (self.from_shape.x, self.from_shape.y))
@@ -30,6 +33,7 @@ class Connection:
         return (start, end)
 
     def auto_calculate_anchors(self):
+        """Pick anchor sides based on the relative position of the shapes."""
         dx = self.to_shape.x - self.from_shape.x
         dy = self.to_shape.y - self.from_shape.y
         if abs(dx) > abs(dy):
@@ -42,6 +46,7 @@ class Connection:
             self.to_anchor = 'top' if dy > 0 else 'bottom'
 
     def to_dict(self) -> dict:
+        """Serialize the connection to a dictionary."""
         return {
             "id": self.id,
             "from_id": self.from_shape.id,
@@ -53,6 +58,7 @@ class Connection:
 
     @staticmethod
     def from_dict(data: dict, shapes: list) -> Optional['Connection']:
+        """Rebuild a connection from a dictionary, resolving shape ids."""
         from_shape = None
         to_shape = None
         for shape in shapes:

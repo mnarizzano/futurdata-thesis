@@ -1,0 +1,20 @@
+sequenceDiagram
+    actor User
+    participant Canvas as DiagramCanvas
+    participant Ctrl as AppController
+    participant Hist as CommandHistory
+    participant Diag as Diagram
+
+    User->>Ctrl: toggle_connect_mode()
+    User->>Canvas: click source node
+    Canvas->>Ctrl: on_canvas_click(event)
+    Ctrl->>Ctrl: store source reference
+    User->>Canvas: move cursor
+    Canvas->>Ctrl: on_canvas_motion(event)
+    Ctrl->>Canvas: draw preview line
+    User->>Canvas: click target node
+    Canvas->>Ctrl: on_canvas_click(event)
+    Ctrl->>Ctrl: _create_arrow_connection(from, to)
+    Ctrl->>Hist: execute(AddConnectionCommand)
+    Hist->>Diag: add_shape(ArrowShape) + add_connection(Connection)
+    Ctrl->>Canvas: redraw_all(diagram)

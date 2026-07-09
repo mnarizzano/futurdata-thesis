@@ -17,6 +17,7 @@ class PropertiesPanel(ttk.Frame):
     """
 
     def __init__(self, parent, on_apply_callback: Optional[Callable] = None):
+        """Initialize the properties panel and build its widgets."""
         super().__init__(parent, padding=10)
         self.on_apply_callback = on_apply_callback
         self.current_shape: Optional[Shape] = None
@@ -28,6 +29,7 @@ class PropertiesPanel(ttk.Frame):
         self._create_widgets()
 
     def _create_widgets(self):
+        """Create the title, properties frame, apply button and empty label."""
         # Title
         title = ttk.Label(self, text="Properties", font=("Arial", 12, "bold"))
         title.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
@@ -88,6 +90,10 @@ class PropertiesPanel(ttk.Frame):
             # Store color mapping for lookup
             widget.color_map = {c['name']: c['id'] for c in colors}
             widget.color_map_reverse = {c['id']: c['name'] for c in colors}
+
+            # Map color names to hex codes for the UI dropdown
+            widget.color_hex_map = {c['name']: c.get('hex_code', '#ffffff') for c in colors}
+
             # Set current value by color_id
             if value and value in widget.color_map_reverse:
                 widget.set(widget.color_map_reverse[value])
@@ -125,6 +131,12 @@ class PropertiesPanel(ttk.Frame):
             # Read-only label for node type
             widget = ttk.Label(parent, text=str(value) if value else "Intermediate", font=("Arial", 9, "italic"))
             widget.grid(row=row, column=1, sticky="ew", pady=3)
+
+        elif field_name == 'image_path':
+            # Plain text field for image path entry
+            widget = ttk.Entry(parent, width=25)
+            widget.grid(row=row, column=1, sticky="ew", pady=3)
+            widget.insert(0, str(value) if value else "")
 
         # Create appropriate widget based on type
         elif field_type == 'BOOLEAN':
@@ -226,6 +238,40 @@ class PropertiesPanel(ttk.Frame):
             widget = self._create_field_widget(self.properties_frame, field, row, value)
             self.dynamic_fields[field_name] = widget
 
+        """This code adds a label to display the component type
+        (Root, Leaf or Composite) based on the node_type value."""
+        
+        display_type = {
+            "root": "Root Component",
+            "leaf": "Leaf Component",
+            "intermediate": "Composite Component"
+        }[component_kind]
+
+        #creates the first row of the table with the "Component Type" label
+        component_type_label = ttk.Label(
+            self.properties_frame,
+            text="Component Type:"
+        )
+        component_type_label.grid(row=0, column=0, sticky="w", pady=3)
+
+        #creates the second row of the table with the component type (Root, Leaf or Composite)
+        component_type_value = ttk.Label(
+            self.properties_frame,
+            text=display_type,
+            foreground="blue",
+            font=("Arial", 9, "bold")
+        )
+        component_type_value.grid(row=0, column=1, sticky="w", pady=3)
+
+        # Shift existing dynamic property rows down by one so the read-only
+        # component type label stays at the top and does not overlap fields.
+        for widget in self.properties_frame.winfo_children():
+            if widget in (component_type_label, component_type_value):
+                continue
+            grid_info = widget.grid_info()
+            if 'row' in grid_info:
+                widget.grid_configure(row=grid_info['row'] + 1)
+
     def _load_action_properties(self, shape: DiamondStep):
         """Load action properties dynamically from database schema."""
         self._clear_dynamic_fields()
@@ -311,9 +357,10 @@ class PropertiesPanel(ttk.Frame):
             self.properties_frame.config(text="Action Properties")
             self._load_action_properties(shape)
         else:
-            # Arrow or unknown type - show minimal properties
+            # Arrow or unknown type - no editable properties, so hide Apply button
             self._clear_dynamic_fields()
             self.properties_frame.config(text="Properties")
+            self.apply_button.grid_remove()
 
     def _on_apply(self):
         """Apply changes to the shape."""
@@ -359,14 +406,32 @@ class PropertiesPanel(ttk.Frame):
             return
 
         if isinstance(self.current_shape, ComponentBox):
-            # FULLY DYNAMIC - write all fields directly to shape.properties dict
+            # We save the original node type before updating 
+            original_node_type = self.current_shape.properties.get('node_type')
+
             for field_name, widget in self.dynamic_fields.items():
+                # Avoid processing structural control fields like UI Labels
+                if field_name in ['node_type', 'id', 'parent_id']:
+                    continue
+
                 value = self._get_widget_value(widget)
                 self.current_shape.properties[field_name] = value
+                
+                # Update the current shape's hex code based on the color selected in the dropdown
+                if field_name == 'color_id' and isinstance(widget, ttk.Combobox):
+                    color_name = widget.get()
+                    if hasattr(widget, 'color_hex_map') and color_name in widget.color_hex_map:
+                        self.current_shape.properties['hex_code'] = widget.color_hex_map[color_name]
+                    else:
+                        self.current_shape.properties['hex_code'] = None
 
-            # Update display text with name
-            if 'name' in self.current_shape.properties:
-                self.current_shape.text = self.current_shape.properties['name']
+            # We safely restore the real node type in the properties dictionary
+            if original_node_type is not None:
+                self.current_shape.properties['node_type'] = original_node_type
+
+            # We synchronize the text of the graphical object so that the name never disappears
+            if 'name' in self.current_shape.properties and self.current_shape.properties['name']:
+                self.current_shape.text = str(self.current_shape.properties['name'])
 
         elif isinstance(self.current_shape, ActionCircle):
             if 'title' in self.dynamic_fields:
