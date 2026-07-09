@@ -42,6 +42,10 @@ def import_json_file(json_path: str, db: DatabaseManager = None) -> Tuple[bool, 
 
     except json.JSONDecodeError as e:
         return False, 0, f"JSON parse error: {e}"
+    except FileNotFoundError:
+        return False, 0, f"File not found: {json_path}"
+    except OSError as e:
+        return False, 0, f"File access error: {e}"
     except Exception as e:
         return False, 0, f"Error importing file: {e}"
 
@@ -99,7 +103,7 @@ def export_to_json(diagram_id: int, output_path: str,
 
         return True, f"Successfully exported to '{output_path}'"
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return False, f"Error exporting diagram: {e}"
 
 

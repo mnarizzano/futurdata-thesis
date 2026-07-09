@@ -129,6 +129,7 @@ class DiamondStep(Shape):
         self.description = ""
         self.tool_id = None
         self.tools = ""
+        self.image_path = ""
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         half = self.SIZE / 2
@@ -156,7 +157,8 @@ class DiamondStep(Shape):
             "name": self.name,
             "description": self.description,
             "tool_id": self.tool_id,
-            "tools": self.tools
+            "tools": self.tools,
+            "image_path": self.image_path
         })
         return data
 
@@ -166,6 +168,7 @@ class DiamondStep(Shape):
         self.description = data.get("description", "")
         self.tool_id = data.get("tool_id")
         self.tools = data.get("tools", "")
+        self.image_path = data.get("image_path", "")
 
 
 class ComponentBox(Shape):
@@ -188,7 +191,8 @@ class ComponentBox(Shape):
         'material_id': None,
         'weight': '',
         'weight_unit': 'g',
-        'node_type': ''  # 'Root', 'Leaf', or '' (intermediate)
+        'node_type': '',
+        'image_path': ''
     }
 
     def __init__(self, x: float, y: float):

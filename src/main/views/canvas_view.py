@@ -256,11 +256,23 @@ class DiagramCanvas(tk.Canvas):
         x1, y1, x2, y2 = shape.get_bounds()
         border_width = 3 if shape.selected else 2
         border_color = self.SELECT_COLOR if shape.selected else self.BORDER_COLOR
-
+        
+        # Determine fill color based on node type and color_id
         fill_color = self.COMPONENT_FILL
-        if hasattr(shape, 'properties') and shape.properties.get('hex_code'):
-            fill_color = shape.properties['hex_code']
-
+        node_type = str(shape.properties.get('node_type', '')).strip().lower()
+        color_id = shape.properties.get('color_id')
+        
+        # If it's a leaf node with a color selected, use that color
+        if node_type == "leaf" and color_id:
+            try:
+                from ..models.database import get_database
+                db = get_database()
+                color_data = db.get_color(int(color_id))
+                if color_data and color_data.get('hex_code'):
+                    fill_color = color_data['hex_code']
+            except Exception:
+                pass  # Fall back to default white if error occurs
+        
         shape.shape_id = self.create_rectangle(
             x1, y1, x2, y2, fill=fill_color, outline=border_color, width=border_width, tags="shape"
         )
