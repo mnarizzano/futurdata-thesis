@@ -4,6 +4,7 @@ User can select a product to load its complete disassembly diagram
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
+import sqlite3
 from typing import Optional, Dict, Any, Callable
 
 
@@ -193,6 +194,8 @@ class ProductListDialog:
             products = self.db.get_all_products()
             self.all_products = products
             self._display_products(products)
+        except sqlite3.DatabaseError as exc:
+            messagebox.showerror("Error", f"Failed to load products from the database: {exc}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load products: {e}")
     
@@ -211,7 +214,7 @@ class ProductListDialog:
                     from datetime import datetime
                     dt = datetime.fromisoformat(modified)
                     modified = dt.strftime("%Y-%m-%d %H:%M")
-                except:
+                except (TypeError, ValueError):
                     pass
             
             self.tree.insert(
@@ -305,5 +308,7 @@ class ProductListDialog:
                 self.db.delete_product(product_id)
                 self._load_products()
                 messagebox.showinfo("Success", f"Product '{product['name']}' deleted successfully")
+            except sqlite3.DatabaseError as exc:
+                messagebox.showerror("Error", f"Failed to delete product from the database: {exc}")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete product: {e}")

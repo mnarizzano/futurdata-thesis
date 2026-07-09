@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
+import sqlite3
 
 class AddToolDialog(tk.Toplevel):
     def __init__(self, parent, controller):
@@ -32,15 +33,19 @@ class AddToolDialog(tk.Toplevel):
         self.wait_window(self)
 
     def on_save(self):
-        name = self.name_var.get()
-        category = self.category_var.get()
+        name = self.name_var.get().strip()
+        category = self.category_var.get().strip()
 
         if not name:
-            print("Error: Tool Name is required.")
+            messagebox.showerror("Error", "Tool name is required.")
             return
 
         try:
             self.controller.add_new_tool(name, category)
             self.destroy()
+        except ValueError as exc:
+            messagebox.showerror("Error", str(exc))
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "This tool already exists or conflicts with database rules.")
         except Exception as e:
-            print(f"Error saving tool: {e}")
+            messagebox.showerror("Error", f"Error saving tool: {e}")

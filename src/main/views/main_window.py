@@ -11,7 +11,7 @@ class MainWindow:
     def __init__(self, root: tk.Tk, controller):
         self.root = root
         self.controller = controller
-        self.root.title("Disassembly Flow Diagram Builder")
+        self.root.title("ARIADNE Disassembly Workflow Builder")
         self.root.geometry("1400x800")
         self.root.minsize(1000, 600)
 
@@ -149,6 +149,12 @@ class MainWindow:
         
         # Also bind for Combobox entry field
         self.root.bind_class("TCombobox", "<Control-a>", self._select_all_text)
+
+        # Clear any default selection when widgets receive focus.
+        self.root.bind_class("Entry", "<FocusIn>", self._clear_default_selection, add="+")
+        self.root.bind_class("TEntry", "<FocusIn>", self._clear_default_selection, add="+")
+        self.root.bind_class("Text", "<FocusIn>", self._clear_default_selection, add="+")
+        self.root.bind_class("TCombobox", "<FocusIn>", self._clear_default_selection, add="+")
     
     def _select_all_text(self, event):
         """Select all text in Entry or Text widget."""
@@ -162,7 +168,18 @@ class MainWindow:
                 widget.select_range(0, tk.END)
                 widget.icursor(tk.END)
                 return "break"
-        except:
+        except tk.TclError:
+            pass
+
+    def _clear_default_selection(self, event):
+        """Remove any preselected text so focus doesn't keep blue highlighting."""
+        widget = event.widget
+        try:
+            if isinstance(widget, tk.Text):
+                widget.tag_remove("sel", "1.0", "end")
+            elif isinstance(widget, (tk.Entry, ttk.Entry, ttk.Combobox)):
+                widget.selection_clear()
+        except tk.TclError:
             pass
 
     def update_ui_state(self):
@@ -185,9 +202,9 @@ class MainWindow:
     def show_about(self):
         messagebox.showinfo(
             "About",
-            "Disassembly Flow Diagram Builder\n\n"
+            "ARIADNE Disassembly Workflow Builder\n\n"
             "Version 1.0\n\n"
-            "A visual tool for creating disassembly flow diagrams\n"
+            "A visual tool for creating disassembly workflows\n"
             "for product documentation and analysis.\n\n"
             "Created as part of a thesis project."
         )

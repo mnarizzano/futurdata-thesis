@@ -105,8 +105,7 @@ class ImageHandler:
             relative_path = os.path.relpath(target_path, self.images_dir)
             return f"images/{relative_path}".replace("\\", "/")
             
-        except Exception as e:
-            print(f"Error uploading image: {e}")
+        except (OSError, shutil.Error, ValueError):
             return None
     
     def _calculate_file_hash(self, file_path: str) -> str:
@@ -126,7 +125,7 @@ class ImageHandler:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash_md5.update(chunk)
             return hash_md5.hexdigest()
-        except Exception:
+        except (OSError, ValueError):
             return ""
     
     def _find_existing_by_hash(self, directory: str, target_hash: str) -> Optional[str]:
@@ -150,7 +149,7 @@ class ImageHandler:
                     file_hash = self._calculate_file_hash(file_path)
                     if file_hash == target_hash:
                         return file_path
-        except Exception:
+        except (OSError, ValueError):
             pass
         
         return None
@@ -215,8 +214,8 @@ class ImageHandler:
             if os.path.exists(full_path):
                 os.remove(full_path)
                 return True
-        except Exception as e:
-            print(f"Error deleting image: {e}")
+        except (OSError, ValueError):
+            return False
         
         return False
 

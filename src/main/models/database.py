@@ -1,12 +1,12 @@
 """
-SQLite Database Module for Disassembly Flow Diagram Builder
+SQLite Database Module for ARIADNE Disassembly Workflow Builder
 
 Schema:
-- root_component: Root product definition
-- color: Color catalog with RGB values
-- material: Material catalog for components
+- root_component: Root product definition and material selection
+- color: Color catalog with RGB values for leaf sorting
+- material: Material catalog and hierarchy for root components
 - intermediate_component: Mid-level components
-- leaf_component: Leaf components
+- leaf_component: Leaf components with color-based sorting
 - disassembly_step: Steps to disassemble components
 - disassembly_step_action: Ordered actions in a step
 - step_output_intermediate: Step outputs for intermediate components
@@ -17,6 +17,7 @@ Schema:
 
 import sqlite3
 import os
+import re
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
 from contextlib import contextmanager
@@ -67,14 +68,50 @@ class DatabaseManager:
                 )
             ''')
             
+            # ==================== MATERIAL CATEGORY TABLE ====================
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS material_category (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL UNIQUE
+                )
+            ''')
+
+            # ==================== MATERIAL SUBCATEGORY TABLE ====================
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS material_subcategory (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category_id INTEGER NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    FOREIGN KEY (category_id) REFERENCES material_category(id) ON DELETE CASCADE
+                )
+            ''')
+
+            # ==================== MATERIAL TYPE TABLE ====================
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS material_type (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category_id INTEGER NOT NULL,
+                    subcategory_id INTEGER,
+                    name VARCHAR(100) NOT NULL,
+                    FOREIGN KEY (category_id) REFERENCES material_category(id) ON DELETE CASCADE,
+                    FOREIGN KEY (subcategory_id) REFERENCES material_subcategory(id) ON DELETE CASCADE
+                )
+            ''')
+
             # ==================== MATERIAL TABLE ====================
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS material (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(100) NOT NULL UNIQUE,
-                    scientific_name VARCHAR(50),
-                    color_id INTEGER,
-                    FOREIGN KEY (color_id) REFERENCES color(id) ON DELETE SET NULL
+                    category_id INTEGER,
+                    subcategory_id INTEGER,
+                    type_id INTEGER,
+                    name VARCHAR(100) NOT NULL,
+                    scientific_name VARCHAR(255),
+                    technical_name VARCHAR(255),
+                    surface VARCHAR(100),
+                    FOREIGN KEY (category_id) REFERENCES material_category(id) ON DELETE SET NULL,
+                    FOREIGN KEY (subcategory_id) REFERENCES material_subcategory(id) ON DELETE SET NULL,
+                    FOREIGN KEY (type_id) REFERENCES material_type(id) ON DELETE SET NULL
                 )
             ''')
 
@@ -214,7 +251,6 @@ class DatabaseManager:
             ''')
 
             # ==================== INDEXES ====================
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_material_color ON material(color_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_root_component_color ON root_component(color_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_root_component_material ON root_component(material_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_intermediate_root ON intermediate_component(root_component_id)')
@@ -276,6 +312,8 @@ class DatabaseManager:
             
             # ==================== MIGRATIONS ====================
             self._migrate_add_image_path(cursor)
+            self._migrate_material_structure(cursor)
+            self._insert_default_material_categories(cursor)
 
     def _migrate_add_image_path(self, cursor):
         """Migration: Add image_path column to existing tables."""
@@ -288,7 +326,103 @@ class DatabaseManager:
                 if 'image_path' not in columns:
                     cursor.execute(f'ALTER TABLE {table} ADD COLUMN image_path VARCHAR(500)')
             except Exception:
-                pass  # Column might already exist or table doesn't exist
+                pass
+
+    def _migrate_material_structure(self, cursor):
+        """Migration: Add new columns to material table."""
+        try:
+            cursor.execute("PRAGMA table_info(material)")
+            columns = [row[1] for row in cursor.fetchall()]
+            
+            # Add new columns if they don't exist
+            if 'category_id' not in columns:
+                cursor.execute('ALTER TABLE material ADD COLUMN category_id INTEGER')
+            if 'subcategory_id' not in columns:
+                cursor.execute('ALTER TABLE material ADD COLUMN subcategory_id INTEGER')
+            if 'type_id' not in columns:
+                cursor.execute('ALTER TABLE material ADD COLUMN type_id INTEGER')
+            if 'scientific_name' not in columns:
+                cursor.execute('ALTER TABLE material ADD COLUMN scientific_name VARCHAR(255)')
+            if 'technical_name' not in columns:
+                cursor.execute('ALTER TABLE material ADD COLUMN technical_name VARCHAR(255)')
+            if 'surface' not in columns:
+                cursor.execute('ALTER TABLE material ADD COLUMN surface VARCHAR(100)')
+                
+        except Exception as e:
+            print(f"Migration error: {e}")
+            pass
+
+    def _insert_default_material_categories(self, cursor):
+        """Insert default material categories, subcategories, and types."""
+        try:
+            # Check if categories already exist
+            cursor.execute("SELECT COUNT(*) FROM material_category")
+            if cursor.fetchone()[0] > 0:
+                return  # Already populated
+            
+            # Insert categories
+            categories = [
+                'Plastic', 'Metal', 'Glass', 'Ceramic', 
+                'Composite', 'Wood', 'Rubber', 'Textile'
+            ]
+            for cat in categories:
+                cursor.execute('INSERT OR IGNORE INTO material_category (name) VALUES (?)', (cat,))
+            
+            # Insert subcategories
+            subcategories = [
+                (1, 'Thermoplastic'),   # Plastic
+                (1, 'Thermoset'),
+                (2, 'Ferrous'),         # Metal
+                (2, 'Non-Ferrous'),
+                (3, 'Tempered'),        # Glass
+                (3, 'Laminated'),
+                (4, 'Porcelain'),       # Ceramic
+                (4, 'Earthenware'),
+                (5, 'Fiber-Reinforced'),# Composite
+                (5, 'Particle'),
+                (6, 'Hardwood'),        # Wood
+                (6, 'Softwood'),
+                (7, 'Natural'),         # Rubber
+                (7, 'Synthetic'),
+                (8, 'Natural Fiber'),   # Textile
+                (8, 'Synthetic Fiber'),
+            ]
+            for cat_id, subcat in subcategories:
+                cursor.execute(
+                    'INSERT OR IGNORE INTO material_subcategory (category_id, name) VALUES (?, ?)',
+                    (cat_id, subcat)
+                )
+            
+            # Insert sample types
+            # Format: (category_id, subcategory_id, name)
+            # subcategory_id = None means type is directly under category
+            types = [
+                # Plastic > Thermoplastic types
+                (1, 1, 'ABS'),
+                (1, 1, 'PET'),
+                (1, 1, 'PP'),
+                (1, 1, 'PVC'),
+                # Plastic > Thermoset types
+                (1, 2, 'Epoxy'),
+                (1, 2, 'Polyester'),
+                # Metal > Ferrous types
+                (2, 3, 'Steel'),
+                (2, 3, 'Cast Iron'),
+                # Metal > Non-Ferrous types
+                (2, 4, 'Aluminum'),
+                (2, 4, 'Copper'),
+                (2, 4, 'Brass'),
+                # Metal direct types (no subcategory)
+                (2, None, 'Titanium'),
+            ]
+            for cat_id, subcat_id, type_name in types:
+                cursor.execute(
+                    'INSERT OR IGNORE INTO material_type (category_id, subcategory_id, name) VALUES (?, ?, ?)',
+                    (cat_id, subcat_id, type_name)
+                )
+        except Exception as e:
+            print(f"Insert categories error: {e}")
+            pass  # Column might already exist or table doesn't exist
 
     def _insert_default_colors(self, cursor):
         """Insert default colors if not exist."""
@@ -319,22 +453,22 @@ class DatabaseManager:
     def _insert_default_materials(self, cursor):
         """Insert default materials if not exist."""
         default_materials = [
-            ("Plastic", "PC", None),
-            ("Metal", "N/A", None),
-            ("Glass", "N/A", None),
-            ("Rubber", "N/A", None),
-            ("Wood", "N/A", None),
-            ("Composite", "N/A", None),
-            ("Ceramic", "N/A", None),
-            ("PCB", "N/A", None),
-            ("Other", "N/A", None),
+            ("Plastic", "PC"),
+            ("Metal", "N/A"),
+            ("Glass", "N/A"),
+            ("Rubber", "N/A"),
+            ("Wood", "N/A"),
+            ("Composite", "N/A"),
+            ("Ceramic", "N/A"),
+            ("PCB", "N/A"),
+            ("Other", "N/A"),
         ]
 
-        for name, scientific_name, color_id in default_materials:
+        for name, scientific_name in default_materials:
             cursor.execute('''
-                INSERT OR IGNORE INTO material (name, scientific_name, color_id)
+                INSERT OR IGNORE INTO material (name, scientific_name, technical_name)
                 VALUES (?, ?, ?)
-            ''', (name, scientific_name, color_id))
+            ''', (name, scientific_name, scientific_name))
 
     # ==================== PRODUCT OPERATIONS ====================
     _INTERMEDIATE_OFFSET = 1_000_000
@@ -426,6 +560,15 @@ class DatabaseManager:
     def create_color(self, name: str, hex_code: str, rgb_r: int = 0,
                      rgb_g: int = 0, rgb_b: int = 0) -> int:
         """Create a new color. Returns the color ID."""
+        name = (name or "").strip()
+        hex_code = (hex_code or "").strip()
+        if not name:
+            raise ValueError("Color name is required.")
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", hex_code):
+            raise ValueError("Hex code must be in the format #RRGGBB.")
+        for channel_name, channel_value in (("red", rgb_r), ("green", rgb_g), ("blue", rgb_b)):
+            if not isinstance(channel_value, int) or not 0 <= channel_value <= 255:
+                raise ValueError(f"{channel_name.capitalize()} channel must be an integer between 0 and 255.")
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -434,36 +577,158 @@ class DatabaseManager:
             ''', (name, hex_code, rgb_r, rgb_g, rgb_b))
             return cursor.lastrowid
 
-    # ==================== MATERIAL OPERATIONS ====================
+    # ==================== MATERIAL CATEGORY OPERATIONS ====================
 
-    def create_material(self, name: str, scientific_name: str = "", color_id: int = None) -> int:
-        """Create a material. Returns the material ID."""
+    def get_all_material_categories(self) -> List[Dict[str, Any]]:
+        """Get all material categories."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM material_category ORDER BY name')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def create_material_category(self, name: str) -> int:
+        """Create a material category. Returns the category ID."""
+        name = (name or "").strip()
+        if not name:
+            raise ValueError("Material category name is required.")
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO material_category (name) VALUES (?)', (name,))
+            return cursor.lastrowid
+
+    # ==================== MATERIAL SUBCATEGORY OPERATIONS ====================
+
+    def get_subcategories_by_category(self, category_id: int) -> List[Dict[str, Any]]:
+        """Get all subcategories for a specific category."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO material (name, scientific_name, color_id)
+                SELECT * FROM material_subcategory 
+                WHERE category_id = ? 
+                ORDER BY name
+            ''', (category_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def create_material_subcategory(self, category_id: int, name: str) -> int:
+        """Create a material subcategory. Returns the subcategory ID."""
+        name = (name or "").strip()
+        if not name:
+            raise ValueError("Material subcategory name is required.")
+        if not category_id:
+            raise ValueError("Category is required for a subcategory.")
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO material_subcategory (category_id, name) 
+                VALUES (?, ?)
+            ''', (category_id, name))
+            return cursor.lastrowid
+
+    # ==================== MATERIAL TYPE OPERATIONS ====================
+
+    def get_types_by_category(self, category_id: int, subcategory_id: int = None) -> List[Dict[str, Any]]:
+        """
+        Get material types for a category.
+        If subcategory_id is provided, get types for that subcategory.
+        If subcategory_id is None, get types directly under category.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            if subcategory_id:
+                cursor.execute('''
+                    SELECT * FROM material_type 
+                    WHERE category_id = ? AND subcategory_id = ?
+                    ORDER BY name
+                ''', (category_id, subcategory_id))
+            else:
+                cursor.execute('''
+                    SELECT * FROM material_type 
+                    WHERE category_id = ? AND subcategory_id IS NULL
+                    ORDER BY name
+                ''', (category_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def create_material_type(self, category_id: int, name: str, subcategory_id: int = None) -> int:
+        """
+        Create a material type. Returns the type ID.
+        If subcategory_id is provided, type belongs to that subcategory.
+        Otherwise, type belongs directly to category.
+        """
+        name = (name or "").strip()
+        if not name:
+            raise ValueError("Material type name is required.")
+        if not category_id:
+            raise ValueError("Category is required for a material type.")
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO material_type (category_id, subcategory_id, name) 
                 VALUES (?, ?, ?)
-            ''', (name, scientific_name, color_id))
+            ''', (category_id, subcategory_id, name))
+            return cursor.lastrowid
+
+    # ==================== MATERIAL OPERATIONS ====================
+
+    def create_material(self, name: str, category_id: int = None, subcategory_id: int = None,
+                       type_id: int = None, technical_name: str = "", surface: str = "") -> int:
+        """Create a material with new hierarchical structure. Returns the material ID."""
+        name = (name or "").strip()
+        technical_name = (technical_name or "").strip()
+        surface = (surface or "").strip()
+
+        if not name:
+            raise ValueError("Material name is required.")
+        if (subcategory_id or type_id) and not category_id:
+            raise ValueError("Category is required when subcategory or type is selected.")
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO material (name, category_id, subcategory_id, type_id, 
+                                     scientific_name, technical_name, surface)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (name, category_id, subcategory_id, type_id, technical_name, technical_name, surface))
             return cursor.lastrowid
 
     def get_material(self, material_id: int) -> Optional[Dict[str, Any]]:
-        """Get a material by ID."""
+        """Get a material by ID with full hierarchy info."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT * FROM material WHERE id = ?', (material_id,))
+            cursor.execute('''
+                SELECT m.*,
+                       mc.name as category_name,
+                       ms.name as subcategory_name,
+                       mt.name as type_name
+                FROM material m
+                LEFT JOIN material_category mc ON m.category_id = mc.id
+                LEFT JOIN material_subcategory ms ON m.subcategory_id = ms.id
+                LEFT JOIN material_type mt ON m.type_id = mt.id
+                WHERE m.id = ?
+            ''', (material_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
 
     def get_all_materials(self) -> List[Dict[str, Any]]:
-        """Get all materials."""
+        """Get all materials with hierarchy info."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT * FROM material ORDER BY name')
+            cursor.execute('''
+                SELECT m.*,
+                       mc.name as category_name,
+                       ms.name as subcategory_name,
+                       mt.name as type_name
+                FROM material m
+                LEFT JOIN material_category mc ON m.category_id = mc.id
+                LEFT JOIN material_subcategory ms ON m.subcategory_id = ms.id
+                LEFT JOIN material_type mt ON m.type_id = mt.id
+                ORDER BY m.name
+            ''')
             return [dict(row) for row in cursor.fetchall()]
 
     def update_material(self, material_id: int, **kwargs) -> bool:
-        """Update material properties."""
-        allowed = {'name', 'scientific_name', 'color_id'}
+        """Update material properties with new hierarchical structure."""
+        allowed = {'name', 'category_id', 'subcategory_id', 'type_id', 
+                  'technical_name', 'surface'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
@@ -482,6 +747,23 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM material WHERE id = ?', (material_id,))
             return cursor.rowcount > 0
+    
+    def get_material_display_name(self, material_id: int) -> str:
+        """Get formatted display name for material (Category > Subcategory > Type > Name)."""
+        material = self.get_material(material_id)
+        if not material:
+            return "Unknown"
+        
+        parts = []
+        if material.get('category_name'):
+            parts.append(material['category_name'])
+        if material.get('subcategory_name'):
+            parts.append(material['subcategory_name'])
+        if material.get('type_name'):
+            parts.append(material['type_name'])
+        parts.append(material['name'])
+        
+        return ' > '.join(parts)
 
     # ==================== COMPONENT OPERATIONS ====================
 
@@ -496,6 +778,19 @@ class DatabaseManager:
             table = "leaf_component"
         else:
             table = "intermediate_component"
+
+        # Enforce the current UI/schema rules:
+        # - Root components show no material/color fields in the UI.
+        # - Leaf components show both material and color.
+        # - Intermediate components show neither.
+        if table == "root_component":
+            material_id = None
+            color_id = None
+        elif table == "leaf_component":
+            pass
+        else:
+            color_id = None
+            material_id = None
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -582,11 +877,12 @@ class DatabaseManager:
     def update_component(self, component_id: int, **kwargs) -> bool:
         """Update component properties."""
         table_name, row_id = self._decode_component_id(component_id)
-        allowed = {'name', 'color_id', 'material_id', 'weight', 'weight_unit', 'node_type', 'image_path'}
         if table_name == "root_component":
-            allowed.update({'brand', 'model', 'description'})
+            allowed = {'name', 'weight', 'weight_unit', 'node_type', 'image_path', 'brand', 'model', 'description'}
+        elif table_name == "leaf_component":
+            allowed = {'name', 'color_id', 'material_id', 'weight', 'weight_unit', 'node_type', 'image_path', 'root_component_id'}
         else:
-            allowed.add('root_component_id')
+            allowed = {'name', 'weight', 'weight_unit', 'node_type', 'image_path', 'root_component_id'}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
@@ -604,6 +900,15 @@ class DatabaseManager:
         if 'weight' in updates:
             value = updates['weight']
             updates['weight'] = float(value) if str(value).strip() else None
+
+        # Enforce stored-schema rules even if older data or external callers try to pass hidden fields.
+        if table_name == "root_component":
+            updates.pop('color_id', None)
+        elif table_name == "leaf_component":
+            updates.pop('material_id', None)
+        else:
+            updates.pop('color_id', None)
+            updates.pop('material_id', None)
 
         if table_name == "root_component":
             updates["modified_at"] = datetime.now().isoformat()
@@ -993,6 +1298,10 @@ class DatabaseManager:
 
     def create_tool(self, name: str, category: str = "") -> int:
         """Create a tool. Returns the tool ID."""
+        name = (name or "").strip()
+        category = (category or "").strip()
+        if not name:
+            raise ValueError("Tool name is required.")
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -1049,14 +1358,14 @@ class DatabaseManager:
         kind = (component_kind or "intermediate").strip().lower()
         if kind == "root":
             table_name = "root_component"
-            exclude = {'id', 'created_at', 'modified_at'}
+            exclude = {'id', 'created_at', 'modified_at', 'color_id', 'material_id'}
         elif kind == "leaf":
             table_name = "leaf_component"
             exclude = {'id', 'root_component_id'}
         else:
             # Treat "composite" as intermediate in current schema.
             table_name = "intermediate_component"
-            exclude = {'id', 'root_component_id'}
+            exclude = {'id', 'root_component_id', 'color_id', 'material_id'}
 
         all_columns = self.get_table_schema(table_name)
 

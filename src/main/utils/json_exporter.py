@@ -55,8 +55,7 @@ class EnhancedJSONExporter:
             
             return True
             
-        except Exception as e:
-            print(f"Export error: {e}")
+        except (OSError, TypeError, ValueError, KeyError):
             return False
     
     def _copy_diagram_images(self, diagram: Diagram, json_file_path: str):
@@ -106,8 +105,8 @@ class EnhancedJSONExporter:
             if copied_count > 0:
                 print(f"Copied {copied_count} images to {images_export_dir}")
             
-        except Exception as e:
-            print(f"Error copying images: {e}")
+        except (OSError, TypeError, ValueError):
+            return
     
     def _files_are_identical(self, file1: str, file2: str) -> bool:
         """Check if two files have identical content using MD5 hash."""
@@ -122,7 +121,7 @@ class EnhancedJSONExporter:
                 return hash_md5.hexdigest()
             
             return get_file_hash(file1) == get_file_hash(file2)
-        except Exception:
+        except (OSError, TypeError, ValueError):
             return False
     
     def _build_metadata(self, diagram: Diagram, product_id: Optional[int]) -> Dict:
@@ -481,5 +480,5 @@ class EnhancedJSONExporter:
             
             print(f"Restored {restored_count} images from {images_import_dir}")
             
-        except Exception as e:
-            print(f"Error restoring images: {e}")
+        except (OSError, TypeError, ValueError):
+            return

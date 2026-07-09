@@ -438,9 +438,6 @@ class AppController:
             input_shape = self._resolve_input_shape_for_step(step_shape)
 
         if step_id:
-            if input_shape is not None:
-                component_id = self._ensure_component_db_id(input_shape)
-                self.db.update_step(int(step_id), component_id=component_id)
             return int(step_id)
 
         if input_shape is None:
@@ -785,6 +782,9 @@ class AppController:
             component_id = self._ensure_component_db_id(shape)
             updates = dict(shape.properties)
             updates.pop("db_id", None)
+            updates.pop("_material_category_id", None)
+            updates.pop("_material_subcategory_id", None)
+            updates.pop("_material_type_id", None)
             self.db.update_component(int(component_id), **updates)
             shape.properties["db_id"] = int(component_id)
             return
@@ -957,25 +957,71 @@ class AppController:
         AddColorDialog(self.view.root, self)
 
     def add_new_color(self, name, hex_code, r, g, b):
-        self.db.create_color(name, hex_code, r, g, b)
-        self.view.refresh_properties_panel()
-        self.view.set_status(f"Added new color: {name}")
+        try:
+            color_id = self.db.create_color(name, hex_code, r, g, b)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new color: {name}")
+            return color_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Color already exists or violates a database rule.") from exc
 
     def show_add_material_dialog(self):
         AddMaterialDialog(self.view.root, self)
 
-    def add_new_material(self, name, sci_name, color_id):
-        self.db.create_material(name, sci_name, color_id)
-        self.view.refresh_properties_panel()
-        self.view.set_status(f"Added new material: {name}")
+    def add_new_material_category(self, name):
+        try:
+            category_id = self.db.create_material_category(name)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material category: {name}")
+            return category_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material category already exists.") from exc
+
+    def add_new_material_subcategory(self, category_id, name):
+        try:
+            subcategory_id = self.db.create_material_subcategory(category_id, name)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material subcategory: {name}")
+            return subcategory_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material subcategory already exists or is invalid.") from exc
+
+    def add_new_material_type(self, category_id, name, subcategory_id=None):
+        try:
+            type_id = self.db.create_material_type(category_id, name, subcategory_id)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material type: {name}")
+            return type_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material type already exists or is invalid.") from exc
+
+    def add_new_material(self, name, category_id=None, subcategory_id=None, type_id=None,
+                         technical_name=""):
+        try:
+            material_id = self.db.create_material(
+                name=name,
+                category_id=category_id,
+                subcategory_id=subcategory_id,
+                type_id=type_id,
+                technical_name=technical_name,
+            )
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material: {name}")
+            return material_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material could not be saved because the selection is already in use or invalid.") from exc
 
     def show_add_tool_dialog(self):
         AddToolDialog(self.view.root, self)
 
     def add_new_tool(self, name, category):
-        self.db.create_tool(name, category)
-        self.view.refresh_properties_panel()
-        self.view.set_status(f"Added new tool: {name}")
+        try:
+            tool_id = self.db.create_tool(name, category)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new tool: {name}")
+            return tool_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Tool already exists or violates a database rule.") from exc
 
     def _schedule_auto_save_json(self):
         """Schedule auto-save to JSON with minimal debounce (0.2 second delay)."""
