@@ -3,7 +3,23 @@ from tkinter import ttk, messagebox
 import sqlite3
 
 class AddToolDialog(tk.Toplevel):
+    """
+    A modal dialog window that allows users to register a new mechanical tool 
+    or equipment asset into the global system catalog.
+    
+    Provides simple form layout entries to collect a tool name and its 
+    associated operational category classification.
+    """
+
     def __init__(self, parent, controller):
+        """
+        Initializes the top-level dialog, maps internal controller pointers, 
+        constructs the component input fields and locks UI input focus.
+
+        Args:
+            parent (tk.Misc): The parent widget or window shell nesting this popup.
+            controller (any): The core application controller driving system flow.
+        """
         super().__init__(parent)
         self.transient(parent)
         self.title("Add New Tool")

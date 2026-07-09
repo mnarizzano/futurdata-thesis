@@ -3,7 +3,23 @@ from tkinter import ttk, colorchooser, messagebox
 import sqlite3
 
 class AddColorDialog(tk.Toplevel):
+    """
+    A modal dialog window that allows users to create and register a new color entry.
+    
+    Provides explicit entry fields for a color name, Hex color code and split 
+    RGB integer components, while additionally embedding the native OS system 
+    color picker as a quick convenience helper.
+    """
+
     def __init__(self, parent, controller):
+        """
+        Initializes the dialog window, constructs the UI layout and blocks 
+        interaction with the parent window until closed.
+
+        Args:
+            parent (tk.Misc): The parent widget/window hosting this dialog.
+            controller (any): The application controller handling data persistence.
+        """
         super().__init__(parent)
         self.transient(parent)
         self.title("Add New Color")
@@ -47,6 +63,13 @@ class AddColorDialog(tk.Toplevel):
         self.wait_window(self)
 
     def choose_color(self):
+        """
+        Launches the native OS color selection dialog palette.
+        
+        If a color choice is accepted, it parses the composite tuple, 
+        extracts the Hex code, converts float-based RGB coordinates into integers,
+        and injects them back into the window's bound Tkinter variables.
+        """
         color_code = colorchooser.askcolor(title="Choose color")
         if color_code and color_code[0] and color_code[1]:
             rgb, hex_code = color_code

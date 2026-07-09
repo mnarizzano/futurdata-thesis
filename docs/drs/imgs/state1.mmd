@@ -1,0 +1,11 @@
+stateDiagram-v2
+    [*] --> Instantiated : create Shape
+    Instantiated --> Idle : add to Diagram + redraw
+    Idle --> Selected : on_canvas_click()
+    Selected --> Dragging : on_canvas_drag()
+    Dragging --> Dropped : on_canvas_release()
+    Dropped --> Idle : snap_to_grid
+    Selected --> Idle : click elsewhere / deselect
+    Selected --> Deleted : delete_selected()
+    Idle --> Deleted : delete (reversible command)
+    Deleted --> [*]

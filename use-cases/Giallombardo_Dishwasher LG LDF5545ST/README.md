@@ -1,0 +1,1 @@
+The json file does not contain all the dismounting process, as it's heavily complex and is difficult to remember every passage, as this diswasher has a lot of composite parts.

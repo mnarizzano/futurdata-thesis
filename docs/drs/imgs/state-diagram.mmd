@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> Unsaved : new_diagram()
+    Unsaved --> Saved : save_diagram() / save_diagram_as()
+    Saved --> Modified : edit / move / delete (modified = True)
+    Modified --> Saved : save_diagram()
+    Saved --> Unsaved : new_diagram()
+    Modified --> Unsaved : new_diagram() (after prompt)
+    Saved --> [*] : exit

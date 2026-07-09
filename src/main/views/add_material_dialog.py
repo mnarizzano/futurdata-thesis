@@ -42,7 +42,23 @@ class _SimpleNameDialog(tk.Toplevel):
 
 
 class AddMaterialDialog(tk.Toplevel):
+    """
+    A modal dialog window that allows users to register a new material entry.
+    
+    Provides entry fields for the material's common name and scientific name, 
+    and incorporates a read-only Combobox drop-down dynamically populated with 
+    pre-existing color entries fetched from the database layer.
+    """
+
     def __init__(self, parent, controller):
+        """
+        Initializes the dialog view, fetches reference data from the database,
+        binds input reactive variables and builds the graphical grid layout.
+
+        Args:
+            parent (tk.Misc): The parent container or main window launching this dialog.
+            controller (any): The application controller handling data delegation and models.
+        """
         super().__init__(parent)
         self.transient(parent)
         self.title("Add New Material")

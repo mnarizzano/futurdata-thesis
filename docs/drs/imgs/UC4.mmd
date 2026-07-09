@@ -1,0 +1,17 @@
+sequenceDiagram
+    actor User
+    participant Win as MainWindow
+    participant Ctrl as AppController
+    participant Ser as DiagramSerializer
+    participant Canvas as DiagramCanvas
+
+    User->>Win: select Open...
+    Win->>Ctrl: open_diagram()
+    Ctrl->>Win: ask_file_path(save=False)
+    Win-->>Ctrl: file_path
+    Ctrl->>Ser: load_from_file(file_path)
+    Ser->>Ser: validate structure & reconstruct shapes/connections
+    Ser-->>Ctrl: Diagram (or None)
+    Ctrl->>Canvas: update_scroll_region_from_shapes(shapes)
+    Ctrl->>Canvas: redraw_all(diagram)
+    Ctrl->>Win: set_status("Opened: ...")

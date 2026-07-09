@@ -1,0 +1,106 @@
+classDiagram
+    class Shape {
+        +int id
+        +float x
+        +float y
+        +str shape_type
+        +to_dict()
+        +from_dict(data)
+        +move(dx, dy)
+        +contains_point(px, py)
+    }
+    class ComponentBox {
+        +str component_name
+        +int color_id
+        +int material_id
+        +float weight
+        +str weight_unit
+        +str node_type
+    }
+    class ActionCircle {
+        +int step_order
+        +str description
+        +int tool_id
+        +str image_path
+    }
+    class DiamondStep {
+        +str description
+        +int tool_id
+    }
+    class ArrowShape {
+        +Shape from_shape
+        +Shape to_shape
+        +auto_calculate_anchors()
+    }
+    class Connection {
+        +Shape source
+        +Shape target
+    }
+    class Diagram {
+        +list~Shape~ shapes
+        +list~Connection~ connections
+        +list selected_shapes
+        +bool modified
+        +str file_path
+        +add_shape(shape)
+        +remove_shape(shape)
+        +find_shape_at_point(x, y)
+    }
+    class AppController {
+        +Diagram diagram
+        +CommandHistory command_history
+        +DatabaseManager db
+        +add_shape(type)
+        +new_diagram()
+        +open_diagram()
+        +save_diagram()
+        +undo()
+        +redo()
+    }
+    class CommandHistory {
+        +execute(command)
+        +undo()
+        +redo()
+    }
+    class DiagramSerializer {
+        +save_to_file(diagram, path)
+        +load_from_file(path)
+    }
+    class DatabaseManager {
+        +get_all_colors()
+        +get_all_materials()
+        +create_color(...)
+        +create_material(...)
+        +create_component(...)
+    }
+    class MainWindow {
+        +DiagramCanvas canvas
+        +PropertiesPanel properties_panel
+        +set_status(message)
+        +update_ui_state()
+    }
+    class DiagramCanvas {
+        +redraw_all(diagram)
+        +move_items(...)
+    }
+    class PropertiesPanel {
+        +load_shape(shape)
+    }
+
+    Shape <|-- ComponentBox
+    Shape <|-- ActionCircle
+    Shape <|-- DiamondStep
+    Shape <|-- ArrowShape
+    Diagram "1" o-- "*" Shape
+    Diagram "1" o-- "*" Connection
+    Connection --> "1" Shape : source
+    Connection --> "1" Shape : target
+    MainWindow --> AppController
+    MainWindow *-- DiagramCanvas
+    MainWindow *-- PropertiesPanel
+    AppController --> Diagram
+    AppController --> CommandHistory
+    AppController --> DiagramSerializer
+    AppController --> DatabaseManager
+    AppController --> DiagramCanvas
+    AppController --> PropertiesPanel
