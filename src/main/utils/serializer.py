@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from typing import Optional
 
 
@@ -27,13 +28,15 @@ class DiagramSerializer:
         """
         try:
             data = diagram.to_dict()
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            parent_dir = Path(file_path).parent
+            if str(parent_dir) and str(parent_dir) != ".":
+                parent_dir.mkdir(parents=True, exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             diagram.file_path = file_path
             diagram.modified = False
             return True
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             print(f"Error saving file: {e}")
             return False
 
@@ -65,7 +68,7 @@ class DiagramSerializer:
         except json.JSONDecodeError as e:
             print(f"Invalid JSON: {e}")
             return None
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             print(f"Error loading file: {e}")
             return None
 

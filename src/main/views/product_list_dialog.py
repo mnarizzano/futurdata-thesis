@@ -4,6 +4,7 @@ User can select a product to load its complete disassembly diagram
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
+import sqlite3
 from typing import Optional, Dict, Any, Callable
 
 
@@ -100,12 +101,12 @@ class ProductListDialog:
         self.tree.heading("modified", text="Last Modified", anchor=tk.W)
         
         # Column widths
-        self.tree.column("name", width=200)
-        self.tree.column("brand", width=120)
-        self.tree.column("model", width=100)
+        self.tree.column("name", width=250)
+        self.tree.column("brand", width=150)
+        self.tree.column("model", width=120)
         self.tree.column("components", width=100)
         self.tree.column("steps", width=80)
-        self.tree.column("modified", width=150)
+        self.tree.column("modified", width=180)
         
         # Grid layout
         self.tree.grid(row=0, column=0, sticky="nsew")
@@ -197,6 +198,8 @@ class ProductListDialog:
             products = self.db.get_all_products()
             self.all_products = products
             self._display_products(products)
+        except sqlite3.DatabaseError as exc:
+            messagebox.showerror("Error", f"Failed to load products from the database: {exc}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load products: {e}")
     
@@ -233,7 +236,7 @@ class ProductListDialog:
                     from datetime import datetime
                     dt = datetime.fromisoformat(modified)
                     modified = dt.strftime("%Y-%m-%d %H:%M")
-                except:
+                except (TypeError, ValueError):
                     pass
             
             self.tree.insert(
@@ -329,5 +332,7 @@ class ProductListDialog:
                 self.db.delete_product(product_id)
                 self._load_products()
                 messagebox.showinfo("Success", f"Product '{product['name']}' deleted successfully")
+            except sqlite3.DatabaseError as exc:
+                messagebox.showerror("Error", f"Failed to delete product from the database: {exc}")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete product: {e}")

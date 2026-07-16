@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk, colorchooser
+from tkinter import ttk, colorchooser, messagebox
+import sqlite3
 
 class AddColorDialog(tk.Toplevel):
     """
@@ -83,20 +84,30 @@ class AddColorDialog(tk.Toplevel):
         Validates compiled form inputs, translates text channels into domain integers
         and delegates object persistence requests directly to the application controller.
         """
-        name = self.name_var.get()
-        hex_code = self.hex_var.get()
-        r = self.rgb_r_var.get()
-        g = self.rgb_g_var.get()
-        b = self.rgb_b_var.get()
+        name = self.name_var.get().strip()
+        hex_code = self.hex_var.get().strip()
+        r = self.rgb_r_var.get().strip()
+        g = self.rgb_g_var.get().strip()
+        b = self.rgb_b_var.get().strip()
 
         if not all([name, hex_code, r, g, b]):
-            # In a real app, you would show a proper error message
-            print("Error: All fields are required.")
+            messagebox.showerror("Error", "All fields are required.")
             return
 
         try:
-            self.controller.add_new_color(name, hex_code, int(r), int(g), int(b))
+            r_int = int(r)
+            g_int = int(g)
+            b_int = int(b)
+        except ValueError:
+            messagebox.showerror("Error", "RGB values must be whole numbers.")
+            return
+
+        try:
+            self.controller.add_new_color(name, hex_code, r_int, g_int, b_int)
             self.destroy()
+        except ValueError as exc:
+            messagebox.showerror("Error", str(exc))
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "This color already exists or conflicts with database rules.")
         except Exception as e:
-            # In a real app, you would show a proper error message
-            print(f"Error saving color: {e}")
+            messagebox.showerror("Error", f"Error saving color: {e}")

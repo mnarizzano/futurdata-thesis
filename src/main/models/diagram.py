@@ -26,6 +26,8 @@ class Diagram:
         self.snap_to_grid = True
         self.modified = False
         self.file_path = None
+        self.auto_sync_json = True 
+        self.last_json_sync = None
 
     def add_shape(self, shape: Shape):
         """Add a new shape to the diagram and mark the diagram as modified."""

@@ -233,6 +233,131 @@ class PropertiesPanelTests(unittest.TestCase):
         self.assertEqual(shape.tools, "Special Tool")
         self.mock_on_apply.assert_called_once()
 
+    def test_get_widget_value_resolves_material_without_type_by_hierarchy(self):
+        """Material selections without a type should still resolve to a matching material ID."""
+        widget = ttk.Combobox(self.root)
+        widget.material_selector = True
+        widget.material_rows = [{
+            "id": 8,
+            "category_id": 1,
+            "subcategory_id": None,
+            "type_id": None,
+        }]
+        widget.category_var = tk.StringVar(value="Ceramic")
+        widget.subcategory_var = tk.StringVar(value="Porcelain")
+        widget.type_var = tk.StringVar(value="")
+        widget.category_map = {"Ceramic": 1}
+        widget.subcategory_map = {"Porcelain": 2}
+        widget.type_map = {}
+
+        self.mock_db.get_material_id_by_hierarchy.return_value = 8
+
+        self.assertEqual(self.panel._get_widget_value(widget), 8)
+        self.mock_db.get_material_id_by_hierarchy.assert_called_once_with(1, 2, None)
+
+    def test_get_widget_value_resolves_material_with_selected_type(self):
+        """Selected type values must resolve to the matching material ID."""
+        widget = ttk.Combobox(self.root)
+        widget.material_selector = True
+        widget.material_rows = [{
+            "id": 9,
+            "category_id": 1,
+            "subcategory_id": 2,
+            "type_id": 3,
+        }]
+        widget.category_var = tk.StringVar(value="Ceramic")
+        widget.subcategory_var = tk.StringVar(value="Porcelain")
+        widget.type_var = tk.StringVar(value="Stoneware")
+        widget.category_map = {"Ceramic": 1}
+        widget.subcategory_map = {"Porcelain": 2}
+        widget.type_map = {"Stoneware": 3}
+        widget.type_combo = ttk.Combobox(self.root, textvariable=widget.type_var)
+
+        self.mock_db.get_material_id_by_hierarchy.return_value = 9
+
+        self.assertEqual(self.panel._get_widget_value(widget), 9)
+        self.mock_db.get_material_id_by_hierarchy.assert_called_once_with(1, 2, 3)
+
+    def test_get_widget_value_creates_material_when_type_selection_has_no_material(self):
+        """If the selected type has no existing material record, one should be created."""
+        widget = ttk.Combobox(self.root)
+        widget.material_selector = True
+        widget.material_rows = []
+        widget.category_var = tk.StringVar(value="Glass")
+        widget.subcategory_var = tk.StringVar(value="Laminated")
+        widget.type_var = tk.StringVar(value="Laminated")
+        widget.category_map = {"Glass": 3}
+        widget.subcategory_map = {"Laminated": 6}
+        widget.type_map = {"Laminated": 4}
+        widget.type_combo = ttk.Combobox(self.root, textvariable=widget.type_var)
+
+        self.mock_db.get_material_id_by_hierarchy.return_value = None
+        self.mock_db.create_material.return_value = 42
+
+        self.assertEqual(self.panel._get_widget_value(widget), 42)
+        self.mock_db.get_material_id_by_hierarchy.assert_called_once_with(3, 6, 4)
+        self.mock_db.create_material.assert_called_once()
+
+    def test_get_widget_value_creates_material_and_type_when_type_missing(self):
+        """If a type name is selected but no type exists, create the type then the material."""
+        widget = ttk.Combobox(self.root)
+        widget.material_selector = True
+        widget.material_rows = []
+        widget.category_var = tk.StringVar(value="Glass")
+        widget.subcategory_var = tk.StringVar(value="Laminated")
+        widget.type_var = tk.StringVar(value="LaminatedType")
+        widget.category_map = {"Glass": 3}
+        widget.subcategory_map = {"Laminated": 6}
+        widget.type_map = {}  # Type not present yet
+        widget.type_combo = ttk.Combobox(self.root, textvariable=widget.type_var)
+
+        self.mock_db.get_material_id_by_hierarchy.return_value = None
+        self.mock_db.create_material_type.return_value = 99
+        self.mock_db.create_material.return_value = 100
+
+        self.assertEqual(self.panel._get_widget_value(widget), 100)
+        self.mock_db.create_material_type.assert_called_once_with(3, "LaminatedType", 6)
+        self.mock_db.create_material.assert_called_once()
+
+    def test_get_widget_value_prefers_category_only_material_when_no_subcategory_is_selected(self):
+        """Category-only selection must not match a material with a subcategory."""
+        widget = ttk.Combobox(self.root)
+        widget.material_selector = True
+        widget.material_rows = [
+            {"id": 10, "category_id": 5, "subcategory_id": 7, "type_id": None},
+            {"id": 11, "category_id": 5, "subcategory_id": None, "type_id": None},
+        ]
+        widget.category_var = tk.StringVar(value="Glass")
+        widget.subcategory_var = tk.StringVar(value="")
+        widget.type_var = tk.StringVar(value="")
+        widget.category_map = {"Glass": 5}
+        widget.subcategory_map = {"": None, "Laminated": 7}
+        widget.type_map = {}
+
+        self.mock_db.get_material_id_by_hierarchy.return_value = 11
+
+        self.assertEqual(self.panel._get_widget_value(widget), 11)
+        self.mock_db.get_material_id_by_hierarchy.assert_called_once_with(5, None, None)
+
+    def test_get_widget_value_creates_material_when_category_only_selected(self):
+        """If the user selects only a category and no material exists, create one."""
+        widget = ttk.Combobox(self.root)
+        widget.material_selector = True
+        widget.material_rows = []
+        widget.category_var = tk.StringVar(value="Glass")
+        widget.subcategory_var = tk.StringVar(value="")
+        widget.type_var = tk.StringVar(value="")
+        widget.category_map = {"Glass": 5}
+        widget.subcategory_map = {"": None}
+        widget.type_map = {"": None}
+
+        self.mock_db.get_material_id_by_hierarchy.return_value = None
+        self.mock_db.create_material.return_value = 77
+
+        self.assertEqual(self.panel._get_widget_value(widget), 77)
+        self.mock_db.get_material_id_by_hierarchy.assert_called_once_with(5, None, None)
+        self.mock_db.create_material.assert_called_once()
+
     def test_refresh_reloads_values_from_current_shape(self):
         """Validate that the refresh method re-invokes load_shape to update fields from the DB."""
         shape = MagicMock(spec=ComponentBox)

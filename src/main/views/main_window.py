@@ -27,7 +27,7 @@ class MainWindow:
         """
         self.root = root
         self.controller = controller
-        self.root.title("Disassembly Flow Diagram Builder")
+        self.root.title("ARIADNE Disassembly Workflow Builder")
         self.root.geometry("1400x800")
         self.root.minsize(1000, 600)
 
@@ -75,12 +75,21 @@ class MainWindow:
         edit_menu.add_separator()
         edit_menu.add_command(label="Manage Colors...", command=self.controller.show_manage_colors_dialog)
         edit_menu.add_command(label="Manage Materials...", command=self.controller.show_manage_materials_dialog)
+        edit_menu.add_command(label="Manage Tools...", command=self.controller.show_manage_tools_dialog)
         edit_menu.add_separator()
         edit_menu.add_command(label="Clear Canvas", command=self.controller.clear_canvas)
 
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="About", command=self.show_about)
+
+    def _on_delete_key(self, event):
+        focused = event.widget
+
+        if focused.winfo_class() in ("Entry", "TEntry", "Text"):
+            return
+
+        self.controller.delete_selected()
 
     def _create_toolbar(self):
         """
@@ -122,6 +131,7 @@ class MainWindow:
             relief = tk.SUNKEN,
             command = self.controller.toggle_snap_mode
         )
+
         self.snap_btn.pack(side="left", padx=2)
 
     def _create_main_area(self):
@@ -169,6 +179,7 @@ class MainWindow:
         self.paned_window.add(canvas_frame, weight=4)
 
         self.properties_panel = PropertiesPanel(self.paned_window, on_apply_callback=self.controller.apply_properties)
+
         self.paned_window.add(self.properties_panel, weight=1)
 
     def _create_status_bar(self):
@@ -201,10 +212,10 @@ class MainWindow:
         self.root.bind('<Control-Shift-S>', lambda e: self.controller.save_diagram_as())
         self.root.bind('<Control-z>', lambda e: self.controller.undo())
         self.root.bind('<Control-y>', lambda e: self.controller.redo())
-        self.root.bind('<Delete>', lambda e: self.controller.delete_selected())
+        self.root.bind('<BackSpace>', self._on_delete_key)
+        self.root.bind('<Delete>', self._on_delete_key)
         self.root.bind('<Control-plus>', lambda e: self.controller.zoom_in())
         self.root.bind('<Control-minus>', lambda e: self.controller.zoom_out())
-        self.root.bind('<BackSpace>', lambda e: self.controller.delete_selected())
         self.root.bind('<Control-a>', lambda e: self.controller.select_all())
         self.root.bind('<Control-equal>', lambda e: self.controller.zoom_in())
         self.root.bind('<Control-Shift-equal>', lambda e: self.controller.zoom_in())
@@ -225,6 +236,12 @@ class MainWindow:
         
         # Also bind for Combobox entry field
         self.root.bind_class("TCombobox", "<Control-a>", self._select_all_text)
+
+        # Clear any default selection when widgets receive focus.
+        self.root.bind_class("Entry", "<FocusIn>", self._clear_default_selection, add="+")
+        self.root.bind_class("TEntry", "<FocusIn>", self._clear_default_selection, add="+")
+        self.root.bind_class("Text", "<FocusIn>", self._clear_default_selection, add="+")
+        self.root.bind_class("TCombobox", "<FocusIn>", self._clear_default_selection, add="+")
     
     def _select_all_text(self, event):
         """
@@ -249,7 +266,18 @@ class MainWindow:
                 widget.select_range(0, tk.END)
                 widget.icursor(tk.END)
                 return "break"
-        except Exception:
+        except tk.TclError:
+            pass
+
+    def _clear_default_selection(self, event):
+        """Remove any preselected text so focus doesn't keep blue highlighting."""
+        widget = event.widget
+        try:
+            if isinstance(widget, tk.Text):
+                widget.tag_remove("sel", "1.0", "end")
+            elif isinstance(widget, (tk.Entry, ttk.Entry, ttk.Combobox)):
+                widget.selection_clear()
+        except tk.TclError:
             pass
 
     def update_ui_state(self):
@@ -297,9 +325,9 @@ class MainWindow:
         """Displays an informational standard popup dialog crediting the application."""
         messagebox.showinfo(
             "About",
-            "Disassembly Flow Diagram Builder\n\n"
+            "ARIADNE Disassembly Workflow Builder\n\n"
             "Version 1.0\n\n"
-            "A visual tool for creating disassembly flow diagrams\n"
+            "A visual tool for creating disassembly workflows\n"
             "for product documentation and analysis.\n\n"
             "Created as part of a thesis project."
         )

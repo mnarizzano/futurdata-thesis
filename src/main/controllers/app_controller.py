@@ -17,6 +17,7 @@ from ..utils.diagram_loader import DiagramLoader
 from ..utils.json_exporter import EnhancedJSONExporter
 from ..views.manage_colors_dialog import ManageColorsDialog
 from ..views.manage_materials_dialog import ManageMaterialsDialog
+from ..views.manage_tools_dialog import ManageToolsDialog
 
 
 class AppController:
@@ -39,6 +40,8 @@ class AppController:
         self.arrow_mode = False
         self.connecting_from = None
         self.preview_line_id = None
+        self.auto_save_timer = None  
+        self.auto_save_delay = 200  
 
     def set_view(self, view):
         """Attach the view and wire up canvas event bindings."""
@@ -111,8 +114,15 @@ class AppController:
 
     def on_canvas_click(self, event):
         """Handle left-click: select a shape, start a drag, or start a connection."""
-        x = self.view.canvas.canvasx(event.x)
-        y = self.view.canvas.canvasy(event.y)
+        # 1. Map viewport window pixels to scroll region coordinates
+        cx = self.view.canvas.canvasx(event.x)
+        cy = self.view.canvas.canvasy(event.y)
+        
+        # 2. Divide by zoom factor to map back to standard unzoomed shape space
+        zoom = self.view.canvas.zoom_factor
+        x = cx / zoom
+        y = cy / zoom
+        
         clicked_shape = self.diagram.find_shape_at_point(x, y)
 
         if self.arrow_mode:
@@ -130,7 +140,7 @@ class AppController:
         if clicked_shape:
             self.diagram.select_shape(clicked_shape, multi_select=multi_select)
             self.dragging = True
-            self.drag_start = (x, y)
+            self.drag_start = (x, y)  # Saved as unzoomed coordinates
             self.drag_shapes = list(self.diagram.selected_shapes)
             self.drag_initial_positions = {shape: (shape.x, shape.y) for shape in self.drag_shapes}
         else:
@@ -146,13 +156,20 @@ class AppController:
 
         self._auto_scroll_viewport(event.x, event.y)
 
-        x = self.view.canvas.canvasx(event.x)
-        y = self.view.canvas.canvasy(event.y)
+        # 1. Map drag position to scroll coordinates
+        cx = self.view.canvas.canvasx(event.x)
+        cy = self.view.canvas.canvasy(event.y)
+        
+        # 2. Convert to unzoomed coordinates
+        zoom = self.view.canvas.zoom_factor
+        x = cx / zoom
+        y = cy / zoom
+        
+        # 3. Calculate delta in raw model units
         dx = x - self.drag_start[0]
         dy = y - self.drag_start[1]
 
-        # Prevent dragging shapes into negative coords, where they'd hide behind the
-        # left panel / above the canvas and be unreachable (only CTRL+Z could recover them).
+        # Prevent dragging shapes into negative coords
         min_x1 = min(s.get_bounds()[0] for s in self.drag_shapes)
         min_y1 = min(s.get_bounds()[1] for s in self.drag_shapes)
         if min_x1 + dx < 0:
@@ -160,14 +177,21 @@ class AppController:
         if min_y1 + dy < 0:
             dy = -min_y1
 
+        # Skip logic if mouse movement isn't shifting unzoomed units yet
+        if dx == 0 and dy == 0:
+            return
+
         # Move each shape freely during drag (no snapping)
         for shape in self.drag_shapes:
             shape.x += dx
             shape.y += dy
-            # Fast move - just moves existing canvas items
-            self.view.canvas.move_items(shape, dx, dy)
+            
+            # NOTE: self.view.canvas.move_items() uses VISUAL canvas dimensions.
+            # We must multiply our raw delta back into zoomed canvas pixels!
+            self.view.canvas.move_items(shape, dx * zoom, dy * zoom)
+            
             # Expand canvas if needed
-            self.view.canvas.expand_canvas_if_needed(shape.x, shape.y)
+            self.view.canvas.expand_canvas_if_needed(shape.x * zoom, shape.y * zoom)
 
         self.drag_start = (x, y)
 
@@ -394,14 +418,29 @@ class AppController:
         weight_unit = shape.properties.get("weight_unit") or "g"
 
         if node_type == "Root":
-            comp_id = self.db.create_component(
-                name=name,
-                color_id=color_id,
-                material_id=material_id,
-                weight=weight,
-                weight_unit=weight_unit,
-                node_type="Root",
-            )
+            # Check if root component with this name already exists
+            existing = self._find_existing_root_component(name)
+            if existing:
+                # Update existing instead of creating new
+                comp_id = existing['id']
+                self.db.update_component(
+                    comp_id,
+                    name=name,
+                    color_id=color_id,
+                    material_id=material_id,
+                    weight=weight,
+                    weight_unit=weight_unit,
+                    node_type="Root"
+                )
+            else:
+                comp_id = self.db.create_component(
+                    name=name,
+                    color_id=color_id,
+                    material_id=material_id,
+                    weight=weight,
+                    weight_unit=weight_unit,
+                    node_type="Root",
+                )
         else:
             root_component_id = self._get_root_component_id()
             if root_component_id is None:
@@ -418,6 +457,20 @@ class AppController:
 
         shape.properties["db_id"] = comp_id
         return comp_id
+
+    def _find_existing_root_component(self, name: str) -> Optional[dict]:
+        """Check if a root component with the given name exists in database."""
+        try:
+            with self.db._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM root_component WHERE name = ?", (name,))
+                row = cursor.fetchone()
+                if row:
+                    return dict(row)
+                return None
+        except Exception as e:
+            print(f"[Save] Error checking for existing root component: {e}")
+            return None
 
     def _get_root_component_id(self) -> Optional[int]:
         """Return the DB id of the diagram's root component, if any."""
@@ -615,7 +668,7 @@ class AppController:
             node_type_map = {
                 "root": "Root",
                 "leaf": "Leaf",
-                "composite": "Intermediate",
+                "composite": "Composite",
             }
             node_type = node_type_map.get(requested, "Intermediate")
             shape.properties['node_type'] = node_type
@@ -741,10 +794,20 @@ class AppController:
         """Apply edited properties to a shape and persist them to the DB."""
         command = EditShapePropertiesCommand(shape, old_properties, new_properties)
         self.command_history.execute(command)
-        self._persist_shape_properties(shape)
-        self.diagram.select_shape(shape, multi_select=False)
-        self._update_view()
-        self.view.set_status("Properties updated")
+        
+        # Check source: JSON or Database
+        if self.diagram.file_path and self.diagram.auto_sync_json:
+            # Loaded from JSON → Save to JSON only
+            self.diagram.select_shape(shape, multi_select=False)
+            self._update_view()
+            self.view.set_status("Properties updated (saving to JSON...)")
+            self._schedule_auto_save_json()
+        else:
+            # Loaded from Database → Save to Database only
+            self._persist_shape_properties(shape)
+            self.diagram.select_shape(shape, multi_select=False)
+            self._update_view()
+            self.view.set_status("Properties updated (saved to database)")
 
     def _persist_diagram_to_db(self):
         """Flush current in-memory shapes to DB before file save/export."""
@@ -756,12 +819,28 @@ class AppController:
             else:
                 others.append(shape)
 
+        # First, persist all shape properties
         for shape in roots + others:
             try:
                 self._persist_shape_properties(shape)
             except Exception:
                 # Keep file save resilient; DB sync for relationships is handled separately.
                 continue
+        
+        # Then, sync all connections to database
+        for conn in self.diagram.connections:
+            try:
+                self._sync_connection_to_db(conn.from_shape, conn.to_shape)
+            except Exception:
+                continue
+        
+        # Also sync arrow shapes (which represent connections)
+        for shape in self.diagram.shapes:
+            if isinstance(shape, ArrowShape):
+                try:
+                    self._sync_connection_to_db(shape.from_shape, shape.to_shape)
+                except Exception:
+                    continue
 
     def _persist_shape_properties(self, shape):
         """Persist edited shape properties to the backing database when possible."""
@@ -769,9 +848,7 @@ class AppController:
             component_id = self._ensure_component_db_id(shape)
             updates = dict(shape.properties)
             updates.pop("db_id", None)
-
-            safe_updates = {k: v for k, v in updates.items() if not (k == 'root_component_id' and (v is None or str(v).strip() in ('', 'None')))}
-            self.db.update_component(int(component_id), **safe_updates)
+            self.db.update_component(int(component_id), **updates)
             shape.properties["db_id"] = int(component_id)
             
         if 'root_component_id' in updates:
@@ -813,6 +890,7 @@ class AppController:
                 name=str(shape.name or shape.text or "").strip(),
                 description=str(shape.description or "").strip(),
                 tool_id=shape.tool_id or None,
+                image_path=str(shape.image_path or "").strip(),
             )
             shape.db_action_id = int(action_id)
 
@@ -1010,11 +1088,22 @@ class AppController:
         """Open the dialog for managing colors."""
         ManageColorsDialog(self.view.root, self)
 
+    def show_manage_materials_dialog(self):
+        """Open the dialog for managing materials."""
+        ManageMaterialsDialog(self.view.root, self)
+
+    def show_manage_tools_dialog(self):
+        """Event triggered by the UI layout menus or buttons."""
+        ManageToolsDialog(self.view.root, self)
+
     def add_new_color(self, name, hex_code, r, g, b):
-        """Create a new color in the DB and refresh the panel."""
-        self.db.create_color(name, hex_code, r, g, b)
-        self.view.refresh_properties_panel()
-        self.view.set_status(f"Added new color: {name}")
+        try:
+            color_id = self.db.create_color(name, hex_code, r, g, b)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new color: {name}")
+            return color_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Color already exists or violates a database rule.") from exc
 
     def delete_color(self, color_id: int) -> bool:
         """Deletes a color and refreshes the properties panel if needed."""
@@ -1034,15 +1123,48 @@ class AppController:
         """Open the dialog for adding a new material."""
         AddMaterialDialog(self.view.root, self)
 
-    def show_manage_materials_dialog(self):
-        """Open the dialog for managing materials."""
-        ManageMaterialsDialog(self.view.root, self)
+    def add_new_material_category(self, name):
+        try:
+            category_id = self.db.create_material_category(name)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material category: {name}")
+            return category_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material category already exists.") from exc
 
-    def add_new_material(self, name, sci_name, color_id):
-        """Create a new material in the DB and refresh the panel."""
-        self.db.create_material(name, sci_name, color_id)
-        self.view.refresh_properties_panel()
-        self.view.set_status(f"Added new material: {name}")
+    def add_new_material_subcategory(self, category_id, name):
+        try:
+            subcategory_id = self.db.create_material_subcategory(category_id, name)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material subcategory: {name}")
+            return subcategory_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material subcategory already exists or is invalid.") from exc
+
+    def add_new_material_type(self, category_id, name, subcategory_id=None):
+        try:
+            type_id = self.db.create_material_type(category_id, name, subcategory_id)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material type: {name}")
+            return type_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material type already exists or is invalid.") from exc
+
+    def add_new_material(self, name, category_id=None, subcategory_id=None, type_id=None,
+                         technical_name=""):
+        try:
+            material_id = self.db.create_material(
+                name=name,
+                category_id=category_id,
+                subcategory_id=subcategory_id,
+                type_id=type_id,
+                technical_name=technical_name,
+            )
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new material: {name}")
+            return material_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Material could not be saved because the selection is already in use or invalid.") from exc
 
     def delete_material(self, material_id: int) -> bool:
         """Deletes a material and refreshes the view."""
@@ -1056,6 +1178,13 @@ class AppController:
             raise ValueError("The material cannot be deleted because it is already assigned to a component.")
         except Exception as e:
             raise Exception(f"Error when deleting a material: {e}")
+        
+    def delete_material_category(self, category_id: int) -> bool:
+        """Deletes a material category through the database."""
+        try:
+            return self.db.delete_material_category(category_id)
+        except Exception as e:
+            raise Exception(f"Error deleting category: {e}")
 
     def show_add_tool_dialog(self):
         """Open the dialog for adding a new tool."""
@@ -1063,9 +1192,52 @@ class AppController:
 
     def add_new_tool(self, name, category):
         """Create a new tool in the DB and refresh the panel."""
-        self.db.create_tool(name, category)
-        self.view.refresh_properties_panel()
-        self.view.set_status(f"Added new tool: {name}")
+        try:
+            tool_id = self.db.create_tool(name, category)
+            self.view.refresh_properties_panel()
+            self.view.set_status(f"Added new tool: {name}")
+            return tool_id
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Tool already exists or violates a database rule.") from exc
+
+    def _schedule_auto_save_json(self):
+        """Schedule auto-save to JSON with minimal debounce (0.2 second delay)."""
+        # Cancel existing timer if any
+        if self.auto_save_timer:
+            self.view.root.after_cancel(self.auto_save_timer)
+        
+        # Only auto-save if diagram was loaded from JSON and auto-sync is enabled
+        if self.diagram.file_path and self.diagram.auto_sync_json:
+            # Schedule new save after delay
+            self.auto_save_timer = self.view.root.after(
+                self.auto_save_delay, 
+                self._auto_save_to_json
+            )
+    
+    def _auto_save_to_json(self):
+        """Auto-save diagram to JSON file."""
+        if not self.diagram.file_path:
+            return
+        
+        try:
+            from datetime import datetime
+            
+            # Export to JSON with images
+            success = self.json_exporter.export_diagram(
+                self.diagram,
+                self.diagram.file_path,
+                self.current_product_id,
+                copy_images=True
+            )
+            
+            if success:
+                self.diagram.last_json_sync = datetime.now()
+                # Show brief notification
+                self.view.set_status(f"✓ Auto-saved to {os.path.basename(self.diagram.file_path)}")
+                # Clear status after 1.5 seconds
+                self.view.root.after(1500, lambda: self.view.set_status("Ready"))
+        except Exception:
+            pass
 
     def _update_view(self):
         """Redraw the canvas and sync the properties panel with the selection."""
@@ -1142,7 +1314,11 @@ class AppController:
             )
             
             if success:
-                self.view.set_status(f"Exported: {os.path.basename(file_path)}")
+                # Enable auto-sync for future edits
+                self.diagram.file_path = file_path
+                self.diagram.auto_sync_json = True
+                
+                self.view.set_status(f"✓ Exported: {os.path.basename(file_path)} (auto-sync enabled)")
             else:
                 self.view.show_error("Error", "Failed to export diagram")
                 
@@ -1163,6 +1339,8 @@ class AppController:
             
             if diagram:
                 self.diagram = diagram
+                self.diagram.file_path = file_path  # Track source JSON file
+                self.diagram.auto_sync_json = True  # Enable auto-sync
                 self.command_history.clear()
                 
                 # Sync to database
@@ -1178,7 +1356,7 @@ class AppController:
                 # Update canvas scroll region
                 self.view.canvas.update_scroll_region_from_shapes(self.diagram.shapes)
                 self._update_view()
-                self.view.set_status(f"Imported: {os.path.basename(file_path)}")
+                self.view.set_status(f"Imported: {os.path.basename(file_path)} (auto-sync enabled)")
             else:
                 self.view.show_error("Error", "Failed to import diagram")
                 

@@ -23,7 +23,7 @@ class EnhancedJSONExporter:
         self.db = database
     
     def export_diagram(self, diagram: Diagram, file_path: str, 
-                      product_id: Optional[int] = None) -> bool:
+                      product_id: Optional[int] = None, copy_images: bool = True) -> bool:
         """
         Export diagram to JSON with complete database information.
         
@@ -31,7 +31,7 @@ class EnhancedJSONExporter:
             diagram: Diagram object to export
             file_path: Path to save JSON file
             product_id: Optional product ID to include metadata
-            
+            copy_images: Whether to copy image files to the export directory
         Returns:
             True if successful, False otherwise
         """
@@ -49,10 +49,79 @@ class EnhancedJSONExporter:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             
+            # Copy images if requested
+            if copy_images:
+                self._copy_diagram_images(diagram, file_path)
+            
             return True
             
-        except Exception as e:
-            print(f"Export error: {e}")
+        except (OSError, TypeError, ValueError, KeyError):
+            return False
+    
+    def _copy_diagram_images(self, diagram: Diagram, json_file_path: str):
+        """Copy all images referenced in diagram to export folder with duplicate detection."""
+        try:
+            import shutil
+            import hashlib
+            from .image_handler import get_image_handler
+            
+            # Create images folder next to JSON file
+            json_dir = os.path.dirname(json_file_path)
+            json_basename = os.path.splitext(os.path.basename(json_file_path))[0]
+            images_export_dir = os.path.join(json_dir, f"{json_basename}_images")
+            
+            os.makedirs(images_export_dir, exist_ok=True)
+            
+            image_handler = get_image_handler()
+            copied_count = 0
+            skipped_count = 0
+            
+            # Collect and copy all images
+            for shape in diagram.shapes:
+                image_path = None
+                
+                if isinstance(shape, ComponentBox):
+                    image_path = shape.properties.get('image_path', '')
+                elif isinstance(shape, ActionCircle):
+                    image_path = getattr(shape, 'image_path', '')
+                elif isinstance(shape, DiamondStep):
+                    image_path = getattr(shape, 'image_path', '')
+                
+                if image_path:
+                    full_path = image_handler.get_full_path(image_path)
+                    if os.path.exists(full_path):
+                        dest_path = os.path.join(images_export_dir, os.path.basename(image_path))
+                        
+                        # Check if file already exists with same content
+                        if os.path.exists(dest_path):
+                            if self._files_are_identical(full_path, dest_path):
+                                skipped_count += 1
+                                continue
+                        
+                        # Copy if file doesn't exist or content is different
+                        shutil.copy2(full_path, dest_path)
+                        copied_count += 1
+            
+            if copied_count > 0:
+                print(f"Copied {copied_count} images to {images_export_dir}")
+            
+        except (OSError, TypeError, ValueError):
+            return
+    
+    def _files_are_identical(self, file1: str, file2: str) -> bool:
+        """Check if two files have identical content using MD5 hash."""
+        try:
+            import hashlib
+            
+            def get_file_hash(filepath):
+                hash_md5 = hashlib.md5()
+                with open(filepath, "rb") as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        hash_md5.update(chunk)
+                return hash_md5.hexdigest()
+            
+            return get_file_hash(file1) == get_file_hash(file2)
+        except (OSError, TypeError, ValueError):
             return False
     
     def _build_metadata(self, diagram: Diagram, product_id: Optional[int]) -> Dict:
@@ -121,7 +190,8 @@ class EnhancedJSONExporter:
                 "material_id": shape.properties.get('material_id'),
                 "weight": shape.properties.get('weight'),
                 "weight_unit": shape.properties.get('weight_unit', 'g'),
-                "description": shape.properties.get('description', '')
+                "description": shape.properties.get('description', ''),
+                "image_path": shape.properties.get('image_path', '')
             })
             
             # Determine if it's a product
@@ -147,7 +217,8 @@ class EnhancedJSONExporter:
                 "name": getattr(shape, 'name', ''),
                 "description": getattr(shape, 'description', ''),
                 "tools": getattr(shape, 'tools', ''),
-                "tool_id": getattr(shape, 'tool_id', None)
+                "tool_id": getattr(shape, 'tool_id', None),
+                "image_path": getattr(shape, 'image_path', '')
             })
         
         return base_data
@@ -269,6 +340,9 @@ class EnhancedJSONExporter:
                     conn.auto_calculate_anchors()
                     diagram.connections.append(conn)
             
+            # Restore images if available
+            self._restore_diagram_images(diagram, file_path)
+            
             return diagram
             
         except Exception as e:
@@ -294,6 +368,7 @@ class EnhancedJSONExporter:
             shape.properties['weight'] = data.get('weight')
             shape.properties['weight_unit'] = data.get('weight_unit', 'g')
             shape.properties['description'] = data.get('description', '')
+            shape.properties['image_path'] = data.get('image_path', '')
             
             # If DB ID exists and not creating new, preserve it
             if data.get('db_id') and not create_in_db:
@@ -317,6 +392,7 @@ class EnhancedJSONExporter:
             shape = DiamondStep(x, y)
             shape.text = data.get('text', '')
             shape.name = data.get('name', '')
+            shape.image_path = data.get('image_path', '')
             shape.description = data.get('description', '')
             shape.tools = data.get('tools', '')
             shape.tool_id = data.get('tool_id')
@@ -342,3 +418,67 @@ class EnhancedJSONExporter:
         arrow = ArrowShape(0, 0, from_shape, to_shape)
         arrow.update_from_shapes()
         return arrow
+    
+    def _restore_diagram_images(self, diagram: Diagram, json_file_path: str):
+        """Restore images from export folder to application images folder."""
+        try:
+            import shutil
+            from .image_handler import get_image_handler
+            
+            # Check for images folder next to JSON
+            json_dir = os.path.dirname(json_file_path)
+            json_basename = os.path.splitext(os.path.basename(json_file_path))[0]
+            images_import_dir = os.path.join(json_dir, f"{json_basename}_images")
+            
+            if not os.path.exists(images_import_dir):
+                return  # No images folder found
+            
+            image_handler = get_image_handler()
+            restored_count = 0
+            
+            # Process each shape and restore its image
+            for shape in diagram.shapes:
+                image_path = None
+                
+                if isinstance(shape, ComponentBox):
+                    image_path = shape.properties.get('image_path', '')
+                elif isinstance(shape, ActionCircle):
+                    image_path = getattr(shape, 'image_path', '')
+                elif isinstance(shape, DiamondStep):
+                    image_path = getattr(shape, 'image_path', '')
+                
+                if image_path:
+                    # Check if image exists in import folder
+                    filename = os.path.basename(image_path)
+                    source_path = os.path.join(images_import_dir, filename)
+                    
+                    if os.path.exists(source_path):
+                        # Determine entity type for proper folder
+                        entity_type = "component"
+                        if isinstance(shape, ActionCircle):
+                            entity_type = "step"
+                        elif isinstance(shape, DiamondStep):
+                            entity_type = "action"
+                        
+                        # Use image handler to upload (which copies to proper folder)
+                        new_path = image_handler.upload_image(
+                            source_path, 
+                            entity_type,
+                            None  # No entity ID yet
+                        )
+                        
+                        if new_path:
+                            # Update shape with new path
+                            if isinstance(shape, ComponentBox):
+                                shape.properties['image_path'] = new_path
+                            elif isinstance(shape, ActionCircle):
+                                shape.image_path = new_path
+                            elif isinstance(shape, DiamondStep):
+                                shape.image_path = new_path
+                            
+                            restored_count += 1
+            
+            print(f"Restored {restored_count} images from {images_import_dir}")
+            
+        except (OSError, TypeError, ValueError):
+            return
