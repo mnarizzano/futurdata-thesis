@@ -331,10 +331,32 @@ class DiagramCanvas(tk.Canvas):
         border_width = 3 if shape.selected else 2
         border_color = self.SELECT_COLOR if shape.selected else self.BORDER_COLOR
 
+        # Determine the default fill color based on node type
+        if node_type == 'leaf':
+            fill_color = self.LEAF_COMPONENT_FILL  # Default soft green: "#ecfdf5"
+        else:
+            fill_color = self.COMPONENT_FILL       # Default white: "white"
+
+        """
+        # Safely retrieve the color_id from shape properties
+        color_id = shape.properties.get('color_id')
+
+        # If it's a leaf node and a custom color is selected, query the database
+        if node_type == 'leaf' and color_id is not None:
+            try:
+                from ..models.database import get_database
+                db = get_database()
+                color_data = db.get_color(int(color_id))
+                if color_data and color_data.get('hex_code'):
+                    fill_color = color_data['hex_code']
+            except Exception:
+                pass  # Fall back to self.LEAF_COMPONENT_FILL if database fails
+                """
+        
         if node_type == 'root':
             shape.shape_id = self.create_rectangle(
                 x1, y1, x2, y2,
-                fill=self.COMPONENT_FILL,
+                fill=fill_color, # Updated from self.COMPONENT_FILL
                 outline=self.ROOT_COMPONENT_OUTLINE,
                 width=border_width,
                 tags="shape"
@@ -343,7 +365,7 @@ class DiagramCanvas(tk.Canvas):
         elif node_type == 'leaf':
             shape.shape_id = self._create_rounded_rectangle(
                 x1, y1, x2, y2, self.LEAF_CORNER_RADIUS,
-                fill=self.COMPONENT_FILL,
+                fill=fill_color, # Updated from self.COMPONENT_FILL
                 outline=self.LEAF_COMPONENT_OUTLINE,
                 width=border_width,
                 tags="shape"
@@ -352,14 +374,14 @@ class DiagramCanvas(tk.Canvas):
         else:
             shape.shape_id = self._create_trimmed_rectangle(
                 x1, y1, x2, y2, self.INTERMEDIATE_CUT,
-                fill=self.COMPONENT_FILL,
+                fill=fill_color, # Updated from self.COMPONENT_FILL
                 outline=self.INTERMEDIATE_COMPONENT_OUTLINE,
                 width=border_width,
                 tags="shape"
             )
             outline_color = self.SELECT_COLOR if shape.selected else self.INTERMEDIATE_COMPONENT_OUTLINE
 
-        if shape.selected:                 #if the shape is selected, change the outline color to the selection color
+        if shape.selected:                 # if the shape is selected, change the outline color to the selection color
             self.itemconfig(shape.shape_id, outline=self.SELECT_COLOR)
         else:
             self.itemconfig(shape.shape_id, outline=outline_color)

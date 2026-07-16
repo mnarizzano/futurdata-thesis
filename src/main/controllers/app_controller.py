@@ -1335,15 +1335,20 @@ class AppController:
             return
         
         try:
-            diagram = self.json_exporter.import_diagram(file_path, create_in_db=True)
+            # 1. First import the diagram without writing to the database yet (create_in_db=False)
+            diagram = self.json_exporter.import_diagram(file_path, create_in_db=False)
             
             if diagram:
+                # 2. Run the dynamic node type calculation on the memory object
+                diagram.recalculate_node_types()
+                
+                # 3. Assign the updated diagram to our controller
                 self.diagram = diagram
-                self.diagram.file_path = file_path  # Track source JSON file
-                self.diagram.auto_sync_json = True  # Enable auto-sync
+                self.diagram.file_path = file_path  
+                self.diagram.auto_sync_json = True  
                 self.command_history.clear()
                 
-                # Sync to database
+                # 4. Now persist the properly classified components into the database tables!
                 self._persist_diagram_to_db()
                 
                 # Find and set current product ID
@@ -1353,12 +1358,10 @@ class AppController:
                             self.current_product_id = shape.properties.get('db_id')
                             break
                 
-                # Update canvas scroll region
+                # Update canvas scroll region and draw
                 self.view.canvas.update_scroll_region_from_shapes(self.diagram.shapes)
                 self._update_view()
                 self.view.set_status(f"Imported: {os.path.basename(file_path)} (auto-sync enabled)")
-            else:
-                self.view.show_error("Error", "Failed to import diagram")
                 
         except Exception as e:
             self.view.show_error("Error", f"Import failed: {e}")

@@ -184,10 +184,87 @@ class PropertiesPanel(ttk.Frame):
             widget.grid(row=row, column=1, sticky="ew", pady=3)
 
         elif field_name == 'image_path':
-            # Plain text field for image path entry
-            widget = ttk.Entry(parent, width=25)
-            widget.grid(row=row, column=1, sticky="ew", pady=3)
+            # Create a dedicated container frame for the path display + button
+            frame = ttk.Frame(parent)
+            frame.grid(row=row, column=1, sticky="ew", pady=3)
+            frame.columnconfigure(0, weight=1)
+
+            # 1. Provide a visible entry field to show the user the path (read-only for consistency)
+            widget = ttk.Entry(frame, width=15, state="readonly")
+            widget.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+            
+            # Since the widget is read-only, we must temporarily set it to normal 
+            # to insert the initial value, then change it back to read-only.
+            widget.config(state="normal")
             widget.insert(0, str(value) if value else "")
+            widget.config(state="readonly")
+
+            def browse_and_upload_image():
+                from tkinter import filedialog, messagebox
+                from ..utils.image_handler import get_image_handler
+                
+                filename = filedialog.askopenfilename(
+                    title="Select Image",
+                    filetypes=[
+                        ("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.webp"),
+                        ("All files", "*.*")
+                    ]
+                )
+                if filename:
+                    entity_type = "component"
+                    entity_id = None
+                    product_name = None
+                    
+                    if self.current_shape:
+                        from ..models import ComponentBox, ActionCircle, DiamondStep
+                        
+                        product_name = self._get_product_name()
+                        
+                        if isinstance(self.current_shape, DiamondStep):
+                            entity_type = "action"
+                            entity_id = getattr(self.current_shape, 'db_action_id', None)
+                        elif isinstance(self.current_shape, ActionCircle):
+                            entity_type = "step"
+                            entity_id = getattr(self.current_shape, 'db_step_id', None)
+                        elif isinstance(self.current_shape, ComponentBox):
+                            entity_type = "component"
+                            entity_id = self.current_shape.properties.get('db_id')
+                    
+                    # 3. Fallback to model-specific shape ID if DB ID is missing
+                    if entity_id is None and self.current_shape:
+                        # Fallback to local shape UUID or temporary key to prevent None paths
+                        entity_id = getattr(self.current_shape, 'id', 'temp_asset')
+
+                    # Upload image and get the relative path
+                    image_handler = get_image_handler()
+                    stored_path = image_handler.upload_image(filename, entity_type, entity_id, product_name)
+                    
+                    if stored_path:
+                        # Update the UI field
+                        widget.config(state="normal")
+                        widget.delete(0, tk.END)
+                        widget.insert(0, stored_path)
+                        widget.config(state="readonly")
+                        
+                        # 2. AUTO-COMMIT STATE: Update the shape model directly on upload
+                        if self.current_shape:
+                            if isinstance(self.current_shape, ComponentBox):
+                                self.current_shape.properties['image_path'] = stored_path
+                            else:
+                                self.current_shape.image_path = stored_path
+                        
+                        # Instantly render preview
+                        self._update_image_preview(stored_path)
+                        
+                        # 2. Programmatically fire apply callback to save the change automatically
+                        self._on_apply()
+                        messagebox.showinfo("Success", "Image uploaded and saved successfully!")
+                    else:
+                        messagebox.showerror("Error", "Failed to upload image. Please check the file format.")
+            
+            # The Upload Button placed side-by-side with the path text
+            browse_btn = ttk.Button(frame, text="Upload", command=browse_and_upload_image, width=8)
+            browse_btn.grid(row=0, column=1, sticky="e")
 
         # Create appropriate widget based on type
         elif field_type == 'BOOLEAN':
@@ -408,7 +485,6 @@ class PropertiesPanel(ttk.Frame):
                 material.get("type_id") == type_id):
                 return material.get("id")
 
-        # 2. THE FIX: If no exact generic material exists in the database, create one on the fly!
         category_name = widget.category_var.get()
         subcategory_name = widget.subcategory_var.get() if subcategory_id else ""
         type_name = widget.type_var.get() if type_id else ""

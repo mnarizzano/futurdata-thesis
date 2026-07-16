@@ -326,15 +326,14 @@ class DatabaseManager:
                 WHERE input_leaf_component_id IS NOT NULL
             ''')
 
+            # ==================== INSERT DEFAULT DATA ====================
+            self._insert_default_colors(cursor)
+            self._insert_default_materials(cursor)
             
             # ==================== MIGRATIONS ====================
             self._migrate_add_image_path(cursor)
             self._migrate_material_structure(cursor)
             self._insert_default_material_categories(cursor)
-            
-            # ==================== INSERT DEFAULT DATA ====================
-            self._insert_default_colors(cursor)
-            self._insert_default_materials(cursor)
 
     def _migrate_add_image_path(self, cursor):
         """Migration: Add image_path column to existing tables."""

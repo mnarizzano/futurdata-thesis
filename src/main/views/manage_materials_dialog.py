@@ -128,6 +128,10 @@ class ManageMaterialsDialog(tk.Toplevel):
             messagebox.showerror("Error", f"Failed to load data: {e}")
 
     def on_delete(self):
+        """
+        Deletes an already-existing material upon confirmation.
+        It does not delete a material if it is already being used by a component.
+        """
         selection = self.listbox.curselection()
         if not selection:
             return
@@ -140,8 +144,7 @@ class ManageMaterialsDialog(tk.Toplevel):
         item_type = info['type']
         item_id = info['id']
         
-        msg = f"Delete this {item_type}?\n\n{display_text.strip()}"
-        if messagebox.askyesno("Confirm", msg):
+        if messagebox.askyesno("Confirm",f"Are you sure you want to delete '{display_text}'?", parent=self):
             try:
                 success = False
                 if item_type == 'category':
