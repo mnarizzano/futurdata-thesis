@@ -1,8 +1,15 @@
 # HTML + JavaScript Disassembly Wizard Exporter
 
-A Python exporter that converts a **Loader Intermediate Representation (IR) JSON file** into a self-contained, interactive HTML disassembly guide.
+A Python-based exporter that converts a Loader Intermediate Representation (IR) JSON file into a self-contained interactive HTML disassembly guide.
 
 The exporter is **product-independent**. The included Nespresso Essenza Mini guide is only an example. The same exporter can generate a guide for a washing machine, air fryer, laptop, printer, or another product, provided that the Loader produces an IR JSON file with the expected schema.
+
+---
+## Purpose
+
+The purpose of this exporter is to transform the Loader Intermediate Representation (IR) into an interactive HTML disassembly guide.
+
+The generated guide can be used by operators or technicians to follow a structured disassembly workflow, evaluate recovered components, and generate a final recovery report.
 
 ---
 
@@ -54,10 +61,8 @@ The exporter does **not** parse the original Builder model. It reads only the no
 
 ## 3. Requirements
 
-- Python 3.10 or newer
-- A modern web browser such as Chrome, Edge, or Firefox
-
-No third-party Python packages are required.
+No external Python packages are required.
+The exporter relies only on the Python Standard Library.
 
 ---
 
@@ -234,35 +239,36 @@ After the last step, the user can open the final summary. It includes:
 The summary can be printed or saved as a PDF through the browser print dialog.
 
 ---
-
 ## 7. Using the Exporter with Another Product
 
-The exporter is not limited to the Nespresso example.
+The exporter is not limited to the included Nespresso example.
 
-For example, to generate a washing-machine guide:
+To generate a guide for another product:
 
-1. Create the washing-machine model in the Builder.
-2. Process the Builder JSON with the Loader.
-3. Save the resulting IR JSON as `data/washing_machine_ir.json`.
-4. Add the washing-machine images to the `images/` folder.
-5. Change the input path in `main.py`:
+1. Create the product model in the Builder.
+2. Process the Builder JSON using the Loader.
+3. Replace the existing:
 
-```python
-exporter.export(
-    ir_path="data/washing_machine_ir.json",
-    output_path="output/washing_machine_wizard.html"
-)
+```text
+data/ir_output.json
 ```
 
-6. Run:
+with the new Loader-generated IR JSON.
+
+4. Replace or add the corresponding images inside the `images/` folder.
+
+5. Run:
 
 ```powershell
 python main.py
 ```
 
-No changes are required in the HTML, CSS, JavaScript, or renderer code if the IR follows the expected schema.
+The exporter will automatically generate a new interactive HTML guide.
+
+No changes to the Python source code, HTML templates, CSS, or JavaScript are required, provided that the Loader generates a valid IR JSON following the expected schema.
 
 ---
+
 
 ## 8. Expected IR Data
 
@@ -413,6 +419,14 @@ ir_path="data/ir_output.json"
 
 Click `Restart`, or clear the browser's local site data for the HTML file.
 
+### Browser shows an old version
+
+If the browser still displays an older version of the guide:
+
+- Regenerate the HTML guide.
+- Refresh the browser using `Ctrl + F5`.
+- If necessary, clear the browser cache.
+
 ---
 
 ## 13. Export Process Summary
@@ -422,7 +436,7 @@ Click `Restart`, or clear the browser's local site data for the HTML file.
 2. Run the Loader
 3. Obtain the IR JSON
 4. Add the referenced images
-5. Set the input path in main.py
+5. Replace the IR JSON in data/ir_output.json
 6. Run python main.py
 7. Open output/wizard.html
 8. Follow the disassembly steps
@@ -434,7 +448,9 @@ Click `Restart`, or clear the browser's local site data for the HTML file.
 
 ## 14. Current Example
 
-The repository includes a complete Nespresso Essenza Mini demonstration with:
+The repository currently includes a complete Nespresso Essenza Mini example used to demonstrate the exporter.
+
+The example contains:
 
 - 9 disassembly steps
 - 17 recovered components
