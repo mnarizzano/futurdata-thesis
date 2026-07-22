@@ -1,0 +1,535 @@
+{
+  "schema_version": "1.0",
+  "product": {
+    "node_id": 1,
+    "name": "Nespresso Essenza Mini",
+    "weight": 2300.0,
+    "weight_unit": "g",
+    "material": "Mixed materials",
+    "color": null,
+    "image": {
+      "path": "images/machine_root.jpg",
+      "is_url": false
+    },
+    "kept_whole": false,
+    "contained_leaf_count": null
+  },
+  "depth": {
+    "mode": "full",
+    "keep_whole_ids": []
+  },
+  "steps": [
+    {
+      "index": 1,
+      "operation": "Remove user-accessible parts",
+      "actions": [
+        {
+          "node_id": 3,
+          "text": "Lift out the removable water tank from the rear seat of the machine.",
+          "tools": "Hands",
+          "image": {
+            "path": "images/action_remove_external.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 4,
+          "text": "Pull out the drip tray and grid from the front-bottom area.",
+          "tools": "Hands",
+          "image": {
+            "path": "images/drip_tray.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 5,
+          "text": "Pull out the used capsule bin from the front of the machine.",
+          "tools": "Hands",
+          "image": {
+            "path": "images/capsule_bin.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 6,
+          "name": "Water Tank",
+          "weight": 150.0,
+          "weight_unit": "g",
+          "material": "Plastic",
+          "color": null,
+          "image": {
+            "path": "images/capsule_bin.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 7,
+          "name": "Drip Tray & Grid",
+          "weight": 100.0,
+          "weight_unit": "g",
+          "material": "Plastic + metal grid",
+          "color": null,
+          "image": {
+            "path": "images/drip_tray.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 8,
+          "name": "Capsule Bin",
+          "weight": 80.0,
+          "weight_unit": "g",
+          "material": "Plastic",
+          "color": null,
+          "image": {
+            "path": "images/capsule_bin.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 9,
+        "name": "Main Housing",
+        "weight": 1970.0,
+        "weight_unit": "g",
+        "material": "Plastic + internal assembly",
+        "color": null,
+        "image": {
+          "path": "images/main_housing.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": [
+        "Hands"
+      ]
+    },
+    {
+      "index": 2,
+      "operation": "Open outer housing",
+      "actions": [
+        {
+          "node_id": 11,
+          "text": "Turn the machine upside down on a soft cloth and locate the four proprietary oval-head screws.",
+          "tools": "Soft cloth",
+          "image": {
+            "path": "images/action_unscrew_casing.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 12,
+          "text": "Remove the four oval-head security screws from the bottom of the machine.",
+          "tools": "Oval-head screwdriver",
+          "image": {
+            "path": "images/oval_screws.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 13,
+          "text": "Release the bottom clips carefully with a plastic pry tool and separate the side panels.",
+          "tools": "Plastic pry tool",
+          "image": {
+            "path": "images/diamond_release_clips.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 14,
+          "name": "Oval-head Screws (x4)",
+          "weight": 10.0,
+          "weight_unit": "g",
+          "material": "Steel",
+          "color": null,
+          "image": {
+            "path": "images/side_panel_left.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 15,
+          "name": "Side Panels",
+          "weight": 400.0,
+          "weight_unit": "g",
+          "material": "Plastic",
+          "color": null,
+          "image": {
+            "path": "images/side_panel_right.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 16,
+        "name": "Internal Chassis",
+        "weight": 1560.0,
+        "weight_unit": "g",
+        "material": "Mixed assembly",
+        "color": null,
+        "image": {
+          "path": "images/internal_chassis.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": [
+        "Soft cloth",
+        "Oval-head screwdriver",
+        "Plastic pry tool"
+      ]
+    },
+    {
+      "index": 3,
+      "operation": "Remove brewing assembly",
+      "actions": [
+        {
+          "node_id": 18,
+          "text": "Unscrew the top lever mechanism while supporting the brewing assembly.",
+          "tools": "Phillips screwdriver",
+          "image": {
+            "path": "images/diamond_release_clips.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 19,
+          "text": "Carefully detach the brewing chamber from the water lines and lift it out.",
+          "tools": "Hands",
+          "image": {
+            "path": "images/brewing_chamber.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 20,
+          "name": "Brewing Chamber",
+          "weight": 300.0,
+          "weight_unit": "g",
+          "material": "Plastic + metal",
+          "color": null,
+          "image": {
+            "path": "images/top_lever.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 21,
+          "name": "Top Lever / Handle",
+          "weight": 150.0,
+          "weight_unit": "g",
+          "material": "Plastic",
+          "color": null,
+          "image": {
+            "path": "images/top_lever.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 22,
+        "name": "Lower Engine Core",
+        "weight": 1110.0,
+        "weight_unit": "g",
+        "material": "Mixed assembly",
+        "color": null,
+        "image": {
+          "path": "images/lower_engine.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": [
+        "Phillips screwdriver",
+        "Hands"
+      ]
+    },
+    {
+      "index": 4,
+      "operation": "Extract internal modules",
+      "actions": [
+        {
+          "node_id": 24,
+          "text": "Unplug the wiring harness and disconnect silicone tubing from the internal modules.",
+          "tools": "Hands, JST connector tool",
+          "image": {
+            "path": "images/action_disconnect_brewing.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 25,
+          "text": "Remove the control electronics PCB from its supports.",
+          "tools": "Phillips screwdriver",
+          "image": {
+            "path": "images/motherboard.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 26,
+          "text": "Pull out the water pump after disconnecting the inlet and outlet tubes.",
+          "tools": "Hands",
+          "image": {
+            "path": "images/water_pump.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 27,
+          "text": "Detach the thermoblock heater from the remaining structure.",
+          "tools": "Phillips screwdriver, hands",
+          "image": {
+            "path": "images/thermoblock.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 28,
+          "name": "Silicone Tubing & Wiring",
+          "weight": 230.0,
+          "weight_unit": "g",
+          "material": "Silicone + copper/PVC",
+          "color": null,
+          "image": {
+            "path": "images/silicone_tubing.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 29,
+          "name": "Motherboard (PCB)",
+          "weight": 80.0,
+          "weight_unit": "g",
+          "material": "FR-4 PCB + electronic components",
+          "color": null,
+          "image": {
+            "path": "images/motherboard.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 30,
+          "name": "Water Pump (19-bar)",
+          "weight": 350.0,
+          "weight_unit": "g",
+          "material": "Metal + copper + plastic",
+          "color": null,
+          "image": {
+            "path": "images/water_pump.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 31,
+          "name": "Thermoblock Heater",
+          "weight": 450.0,
+          "weight_unit": "g",
+          "material": "Aluminium + heating element",
+          "color": null,
+          "image": {
+            "path": "images/thermoblock.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": null,
+      "tools_required": [
+        "Hands, JST connector tool",
+        "Phillips screwdriver",
+        "Hands",
+        "Phillips screwdriver, hands"
+      ]
+    }
+  ],
+  "warnings": [],
+  "bill_of_materials": [
+    {
+      "node_id": 6,
+      "name": "Water Tank",
+      "weight": 150.0,
+      "weight_unit": "g",
+      "material": "Plastic",
+      "color": null,
+      "image": {
+        "path": "images/capsule_bin.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 7,
+      "name": "Drip Tray & Grid",
+      "weight": 100.0,
+      "weight_unit": "g",
+      "material": "Plastic + metal grid",
+      "color": null,
+      "image": {
+        "path": "images/drip_tray.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 8,
+      "name": "Capsule Bin",
+      "weight": 80.0,
+      "weight_unit": "g",
+      "material": "Plastic",
+      "color": null,
+      "image": {
+        "path": "images/capsule_bin.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 14,
+      "name": "Oval-head Screws (x4)",
+      "weight": 10.0,
+      "weight_unit": "g",
+      "material": "Steel",
+      "color": null,
+      "image": {
+        "path": "images/side_panel_left.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 15,
+      "name": "Side Panels",
+      "weight": 400.0,
+      "weight_unit": "g",
+      "material": "Plastic",
+      "color": null,
+      "image": {
+        "path": "images/side_panel_right.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 20,
+      "name": "Brewing Chamber",
+      "weight": 300.0,
+      "weight_unit": "g",
+      "material": "Plastic + metal",
+      "color": null,
+      "image": {
+        "path": "images/top_lever.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 21,
+      "name": "Top Lever / Handle",
+      "weight": 150.0,
+      "weight_unit": "g",
+      "material": "Plastic",
+      "color": null,
+      "image": {
+        "path": "images/top_lever.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 28,
+      "name": "Silicone Tubing & Wiring",
+      "weight": 230.0,
+      "weight_unit": "g",
+      "material": "Silicone + copper/PVC",
+      "color": null,
+      "image": {
+        "path": "images/silicone_tubing.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 29,
+      "name": "Motherboard (PCB)",
+      "weight": 80.0,
+      "weight_unit": "g",
+      "material": "FR-4 PCB + electronic components",
+      "color": null,
+      "image": {
+        "path": "images/motherboard.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 30,
+      "name": "Water Pump (19-bar)",
+      "weight": 350.0,
+      "weight_unit": "g",
+      "material": "Metal + copper + plastic",
+      "color": null,
+      "image": {
+        "path": "images/water_pump.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 31,
+      "name": "Thermoblock Heater",
+      "weight": 450.0,
+      "weight_unit": "g",
+      "material": "Aluminium + heating element",
+      "color": null,
+      "image": {
+        "path": "images/thermoblock.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    }
+  ]
+}

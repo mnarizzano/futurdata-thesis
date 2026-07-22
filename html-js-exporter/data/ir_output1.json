@@ -1,0 +1,787 @@
+{
+  "schema_version": "1.0",
+  "product": {
+    "node_id": 1,
+    "name": "Air fryer Philips HD9252",
+    "weight": 4500.0,
+    "weight_unit": "g",
+    "material": "6",
+    "color": "4",
+    "image": {
+      "path": "images/machine_root.jpg",
+      "is_url": false
+    },
+    "kept_whole": false,
+    "contained_leaf_count": null
+  },
+  "depth": {
+    "mode": "full",
+    "keep_whole_ids": []
+  },
+  "steps": [
+    {
+      "index": 1,
+      "operation": "remove the tray",
+      "actions": [],
+      "outputs": [],
+      "continues_as": {
+        "node_id": 36,
+        "name": "Body HD9252",
+        "weight": 3000.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 2,
+      "operation": "remove the cover",
+      "actions": [
+        {
+          "node_id": 237,
+          "text": "Insert a nylon \nspudger underneath",
+          "tools": null,
+          "image": {
+            "path": "images/action_unscrew_casing.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 239,
+          "text": "Leverage the tool \nand pop off each \nof the eight tabs",
+          "tools": null,
+          "image": null
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 40,
+          "name": "Plastic cover (8 hooks)",
+          "weight": 120.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 241,
+        "name": "Body without cover",
+        "weight": 2880.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 3,
+      "operation": "unscrew(JIS #1)",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 44,
+          "name": "4 Angular screw (12.4 mm)",
+          "weight": 8.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": {
+            "path": "images/final_small_parts.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 246,
+        "name": "Body without cover",
+        "weight": 2872.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 4,
+      "operation": "lift",
+      "actions": [],
+      "outputs": [],
+      "continues_as": {
+        "node_id": 147,
+        "name": "Inferior body",
+        "weight": 2622.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 5,
+      "operation": "unscrew",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 58,
+          "name": "2 Transformer screws (39.5 mm)",
+          "weight": 10.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 152,
+        "name": "Inferior body unscrewed",
+        "weight": 2612.0,
+        "weight_unit": "g",
+        "material": "2",
+        "color": "8",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 6,
+      "operation": "remove",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 62,
+          "name": "Transformer top piece",
+          "weight": 40.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 263,
+        "name": "Inferior body without top piece",
+        "weight": 2612.0,
+        "weight_unit": "g",
+        "material": "2",
+        "color": "8",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 7,
+      "operation": "remove cables",
+      "actions": [
+        {
+          "node_id": 267,
+          "text": "Remove the\n brown and white\n wire attached",
+          "tools": null,
+          "image": {
+            "path": "images/action_remove_pump.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 269,
+          "text": "Disconnect",
+          "tools": null,
+          "image": null
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 66,
+          "name": "Cables (brown and white)",
+          "weight": 20.0,
+          "weight_unit": "g",
+          "material": "6",
+          "color": "10",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 272,
+        "name": "Inferior body without cables",
+        "weight": 2592.0,
+        "weight_unit": "g",
+        "material": "2",
+        "color": "8",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 8,
+      "operation": "extract",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 70,
+          "name": "Transformer",
+          "weight": 600.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 277,
+          "name": "Inferior body without transformer",
+          "weight": 1992.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": null,
+      "tools_required": []
+    },
+    {
+      "index": 9,
+      "operation": "remove the panel",
+      "actions": [
+        {
+          "node_id": 252,
+          "text": "Insert a nylon\nspudger underneath \nthe top",
+          "tools": null,
+          "image": {
+            "path": "images/action_separate_remaining.jpg",
+            "is_url": false
+          }
+        },
+        {
+          "node_id": 254,
+          "text": "Leverage the \ntool and pop off",
+          "tools": null,
+          "image": null
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 52,
+          "name": "Rear panel board",
+          "weight": 30.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 256,
+        "name": "Top without panel",
+        "weight": 220.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 10,
+      "operation": "remove the motherboard",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 261,
+          "name": "Top without motherboard",
+          "weight": 170.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 56,
+          "name": "Motherboard Touch Screen",
+          "weight": 50.0,
+          "weight_unit": "g",
+          "material": "8",
+          "color": "2",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": null,
+      "tools_required": []
+    },
+    {
+      "index": 11,
+      "operation": "pull",
+      "actions": [],
+      "outputs": [],
+      "continues_as": {
+        "node_id": 200,
+        "name": "Tray with handle",
+        "weight": 250.0,
+        "weight_unit": "g",
+        "material": "2",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 12,
+      "operation": "unscrew 4 scres",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 10,
+          "name": "2 Top Screws (14.8 mm)",
+          "weight": 4.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": {
+            "path": "images/oval_screws.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 207,
+          "name": "Tray",
+          "weight": 100.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 6,
+        "name": "Handle",
+        "weight": 150.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 13,
+      "operation": "unscrew",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 11,
+          "name": "4 Frontal Screws (14.8 mm)",
+          "weight": 8.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": "8",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 215,
+        "name": "Handle without screws",
+        "weight": 142.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 14,
+      "operation": "pry out",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 16,
+          "name": "Rear panel",
+          "weight": 25.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 217,
+        "name": "Handle without panel",
+        "weight": 127.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 15,
+      "operation": "remove the pring",
+      "actions": [
+        {
+          "node_id": 233,
+          "text": "push the \nspring down",
+          "tools": null,
+          "image": null
+        },
+        {
+          "node_id": 235,
+          "text": "slide the\nspring out",
+          "tools": null,
+          "image": null
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 19,
+          "name": "Spring",
+          "weight": 10.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "8",
+          "image": {
+            "path": "images/brewing_chamber.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 225,
+        "name": "Handle without spring",
+        "weight": 117.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": "4",
+        "image": null,
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 16,
+      "operation": "remove",
+      "actions": [],
+      "outputs": [
+        {
+          "node_id": 22,
+          "name": "Front of the latch",
+          "weight": 10.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 24,
+          "name": "Latch Button",
+          "weight": 10.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "8",
+          "image": {
+            "path": "images/wiring_harness.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 228,
+          "name": "Handle without latch and button",
+          "weight": 97.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": "4",
+          "image": null,
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": null,
+      "tools_required": []
+    }
+  ],
+  "warnings": [
+    {
+      "rule": "mass_balance",
+      "severity": "warning",
+      "message": "Mass imbalance: leaf components sum to 3304 but the product weighs 4500 (26.6% off).",
+      "node_ids": [
+        1
+      ]
+    }
+  ],
+  "bill_of_materials": [
+    {
+      "node_id": 40,
+      "name": "Plastic cover (8 hooks)",
+      "weight": 120.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 44,
+      "name": "4 Angular screw (12.4 mm)",
+      "weight": 8.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": {
+        "path": "images/final_small_parts.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 58,
+      "name": "2 Transformer screws (39.5 mm)",
+      "weight": 10.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 62,
+      "name": "Transformer top piece",
+      "weight": 40.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 66,
+      "name": "Cables (brown and white)",
+      "weight": 20.0,
+      "weight_unit": "g",
+      "material": "6",
+      "color": "10",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 70,
+      "name": "Transformer",
+      "weight": 600.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 277,
+      "name": "Inferior body without transformer",
+      "weight": 1992.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 52,
+      "name": "Rear panel board",
+      "weight": 30.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 261,
+      "name": "Top without motherboard",
+      "weight": 170.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 56,
+      "name": "Motherboard Touch Screen",
+      "weight": 50.0,
+      "weight_unit": "g",
+      "material": "8",
+      "color": "2",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 10,
+      "name": "2 Top Screws (14.8 mm)",
+      "weight": 4.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": {
+        "path": "images/oval_screws.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 207,
+      "name": "Tray",
+      "weight": 100.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 11,
+      "name": "4 Frontal Screws (14.8 mm)",
+      "weight": 8.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": "8",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 16,
+      "name": "Rear panel",
+      "weight": 25.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 19,
+      "name": "Spring",
+      "weight": 10.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "8",
+      "image": {
+        "path": "images/brewing_chamber.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 22,
+      "name": "Front of the latch",
+      "weight": 10.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 24,
+      "name": "Latch Button",
+      "weight": 10.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "8",
+      "image": {
+        "path": "images/wiring_harness.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 228,
+      "name": "Handle without latch and button",
+      "weight": 97.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": "4",
+      "image": null,
+      "kept_whole": false,
+      "contained_leaf_count": null
+    }
+  ]
+}
