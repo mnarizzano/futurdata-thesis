@@ -1,0 +1,777 @@
+{
+  "schema_version": "1.0",
+  "product": {
+    "node_id": 1,
+    "name": "Nespresso Essenza Mini",
+    "weight": 2300.0,
+    "weight_unit": "g",
+    "material": "2",
+    "color": "4",
+    "image": {
+      "path": "images/machine_root.jpg",
+      "is_url": false
+    },
+    "kept_whole": false,
+    "contained_leaf_count": null
+  },
+  "depth": {
+    "mode": "full",
+    "keep_whole_ids": []
+  },
+  "steps": [
+    {
+      "index": 1,
+      "operation": "Remove external components",
+      "actions": [
+        {
+          "node_id": 3,
+          "text": "Manually remove external components (no tools required)",
+          "tools": null,
+          "image": {
+            "path": "images/action_remove_external.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 4,
+          "name": "Water Tank",
+          "weight": 180.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": null,
+          "image": {
+            "path": "images/water_tank.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 5,
+          "name": "Drip Tray & Grid",
+          "weight": 100.0,
+          "weight_unit": "g",
+          "material": "6",
+          "color": null,
+          "image": {
+            "path": "images/drip_tray.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 6,
+          "name": "Capsule Bin (Used Capsule Container)",
+          "weight": 110.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": null,
+          "image": {
+            "path": "images/capsule_bin.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 7,
+        "name": "Main Housing (Outer Shell)",
+        "weight": 1910.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": null,
+        "image": {
+          "path": "images/main_housing.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 2,
+      "operation": "Remove bottom screws",
+      "actions": [
+        {
+          "node_id": 9,
+          "text": "Remove the 4 proprietary oval-head security screws at the bottom",
+          "tools": null,
+          "image": {
+            "path": "images/action_unscrew_casing.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 10,
+          "name": "Oval-head Security Screws (x4)",
+          "weight": 10.0,
+          "weight_unit": "g",
+          "material": "9",
+          "color": null,
+          "image": {
+            "path": "images/oval_screws.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 11,
+        "name": "Housing Unfastened",
+        "weight": 1900.0,
+        "weight_unit": "g",
+        "material": "1",
+        "color": null,
+        "image": {
+          "path": "images/housing_unfastened.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 3,
+      "operation": "Release bottom clips and side panels",
+      "actions": [
+        {
+          "node_id": 13,
+          "text": "Release bottom clips and separate the side panels",
+          "tools": null,
+          "image": {
+            "path": "images/diamond_release_clips.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 14,
+          "name": "Side Panel (Left)",
+          "weight": 85.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": null,
+          "image": {
+            "path": "images/side_panel_left.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 15,
+          "name": "Side Panel (Right)",
+          "weight": 85.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": null,
+          "image": {
+            "path": "images/side_panel_right.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 16,
+        "name": "Internal Chassis (Core)",
+        "weight": 1730.0,
+        "weight_unit": "g",
+        "material": "6",
+        "color": null,
+        "image": {
+          "path": "images/internal_chassis.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 4,
+      "operation": "Remove brewing assembly",
+      "actions": [
+        {
+          "node_id": 18,
+          "text": "Remove brewing assembly",
+          "tools": null,
+          "image": {
+            "path": "images/action_disconnect_brewing.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 19,
+          "name": "Brewing Chamber (Capsule Slot)",
+          "weight": 120.0,
+          "weight_unit": "g",
+          "material": "6",
+          "color": null,
+          "image": {
+            "path": "images/brewing_chamber.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 20,
+          "name": "Top Lever / Handle",
+          "weight": 45.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": null,
+          "image": {
+            "path": "images/top_lever.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 21,
+        "name": "Chassis without Brewing Assembly",
+        "weight": 1565.0,
+        "weight_unit": "g",
+        "material": "6",
+        "color": null,
+        "image": {
+          "path": "images/chassis_without_brewing.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 5,
+      "operation": "Disconnect wiring and tubing",
+      "actions": [
+        {
+          "node_id": 23,
+          "text": "Disconnect wiring harness and silicone tubing",
+          "tools": null,
+          "image": {
+            "path": "images/action_disconnect_wiring.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 24,
+          "name": "Wiring Harness",
+          "weight": 45.0,
+          "weight_unit": "g",
+          "material": "9",
+          "color": null,
+          "image": {
+            "path": "images/wiring_harness.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 25,
+          "name": "Silicone Tubing",
+          "weight": 20.0,
+          "weight_unit": "g",
+          "material": "4",
+          "color": null,
+          "image": {
+            "path": "images/silicone_tubing.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 26,
+        "name": "Core without Wiring",
+        "weight": 1500.0,
+        "weight_unit": "g",
+        "material": "6",
+        "color": null,
+        "image": {
+          "path": "images/core_without_wiring.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 6,
+      "operation": "Remove control electronics",
+      "actions": [
+        {
+          "node_id": 28,
+          "text": "Remove control electronics (PCB)",
+          "tools": null,
+          "image": {
+            "path": "images/action_remove_pcb.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 29,
+          "name": "Motherboard (PCB)",
+          "weight": 55.0,
+          "weight_unit": "g",
+          "material": "9",
+          "color": null,
+          "image": {
+            "path": "images/motherboard.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 30,
+        "name": "Core without PCB",
+        "weight": 1445.0,
+        "weight_unit": "g",
+        "material": "6",
+        "color": null,
+        "image": {
+          "path": "images/core_without_pcb.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 7,
+      "operation": "Remove water pump",
+      "actions": [
+        {
+          "node_id": 32,
+          "text": "Remove water pump",
+          "tools": null,
+          "image": {
+            "path": "images/action_remove_pump.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 33,
+          "name": "Water Pump (19-bar)",
+          "weight": 310.0,
+          "weight_unit": "g",
+          "material": "6",
+          "color": null,
+          "image": {
+            "path": "images/water_pump.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 34,
+        "name": "Core without Pump",
+        "weight": 1135.0,
+        "weight_unit": "g",
+        "material": "6",
+        "color": null,
+        "image": {
+          "path": "images/core_without_pump.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 8,
+      "operation": "Remove heating system",
+      "actions": [
+        {
+          "node_id": 36,
+          "text": "Remove heating system (thermoblock heater)",
+          "tools": null,
+          "image": {
+            "path": "images/action_remove_thermoblock.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 37,
+          "name": "Thermoblock Heater",
+          "weight": 420.0,
+          "weight_unit": "g",
+          "material": "2",
+          "color": null,
+          "image": {
+            "path": "images/thermoblock.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": {
+        "node_id": 38,
+        "name": "Core without Heater",
+        "weight": 715.0,
+        "weight_unit": "g",
+        "material": "6",
+        "color": null,
+        "image": {
+          "path": "images/core_without_heater.jpg",
+          "is_url": false
+        },
+        "kept_whole": false,
+        "contained_leaf_count": null
+      },
+      "tools_required": []
+    },
+    {
+      "index": 9,
+      "operation": "Separate remaining structure and small parts",
+      "actions": [
+        {
+          "node_id": 40,
+          "text": "Separate remaining structure and small parts",
+          "tools": null,
+          "image": {
+            "path": "images/action_separate_remaining.jpg",
+            "is_url": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "node_id": 41,
+          "name": "Internal Frame (Plastic + Metal Structure)",
+          "weight": 220.0,
+          "weight_unit": "g",
+          "material": "6",
+          "color": null,
+          "image": {
+            "path": "images/final_internal_frame.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 42,
+          "name": "Power Cable & Cable Guide",
+          "weight": 120.0,
+          "weight_unit": "g",
+          "material": "9",
+          "color": null,
+          "image": {
+            "path": "images/final_power_cable.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 43,
+          "name": "Switch Assembly (Power Switch)",
+          "weight": 25.0,
+          "weight_unit": "g",
+          "material": "9",
+          "color": null,
+          "image": {
+            "path": "images/final_power_switch.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        },
+        {
+          "node_id": 44,
+          "name": "Remaining Plastic Structure & Small Parts",
+          "weight": 350.0,
+          "weight_unit": "g",
+          "material": "1",
+          "color": null,
+          "image": {
+            "path": "images/final_small_parts.jpg",
+            "is_url": false
+          },
+          "kept_whole": false,
+          "contained_leaf_count": null
+        }
+      ],
+      "continues_as": null,
+      "tools_required": []
+    }
+  ],
+  "warnings": [],
+  "bill_of_materials": [
+    {
+      "node_id": 4,
+      "name": "Water Tank",
+      "weight": 180.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": null,
+      "image": {
+        "path": "images/water_tank.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 5,
+      "name": "Drip Tray & Grid",
+      "weight": 100.0,
+      "weight_unit": "g",
+      "material": "6",
+      "color": null,
+      "image": {
+        "path": "images/drip_tray.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 6,
+      "name": "Capsule Bin (Used Capsule Container)",
+      "weight": 110.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": null,
+      "image": {
+        "path": "images/capsule_bin.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 10,
+      "name": "Oval-head Security Screws (x4)",
+      "weight": 10.0,
+      "weight_unit": "g",
+      "material": "9",
+      "color": null,
+      "image": {
+        "path": "images/oval_screws.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 14,
+      "name": "Side Panel (Left)",
+      "weight": 85.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": null,
+      "image": {
+        "path": "images/side_panel_left.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 15,
+      "name": "Side Panel (Right)",
+      "weight": 85.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": null,
+      "image": {
+        "path": "images/side_panel_right.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 19,
+      "name": "Brewing Chamber (Capsule Slot)",
+      "weight": 120.0,
+      "weight_unit": "g",
+      "material": "6",
+      "color": null,
+      "image": {
+        "path": "images/brewing_chamber.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 20,
+      "name": "Top Lever / Handle",
+      "weight": 45.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": null,
+      "image": {
+        "path": "images/top_lever.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 24,
+      "name": "Wiring Harness",
+      "weight": 45.0,
+      "weight_unit": "g",
+      "material": "9",
+      "color": null,
+      "image": {
+        "path": "images/wiring_harness.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 25,
+      "name": "Silicone Tubing",
+      "weight": 20.0,
+      "weight_unit": "g",
+      "material": "4",
+      "color": null,
+      "image": {
+        "path": "images/silicone_tubing.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 29,
+      "name": "Motherboard (PCB)",
+      "weight": 55.0,
+      "weight_unit": "g",
+      "material": "9",
+      "color": null,
+      "image": {
+        "path": "images/motherboard.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 33,
+      "name": "Water Pump (19-bar)",
+      "weight": 310.0,
+      "weight_unit": "g",
+      "material": "6",
+      "color": null,
+      "image": {
+        "path": "images/water_pump.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 37,
+      "name": "Thermoblock Heater",
+      "weight": 420.0,
+      "weight_unit": "g",
+      "material": "2",
+      "color": null,
+      "image": {
+        "path": "images/thermoblock.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 41,
+      "name": "Internal Frame (Plastic + Metal Structure)",
+      "weight": 220.0,
+      "weight_unit": "g",
+      "material": "6",
+      "color": null,
+      "image": {
+        "path": "images/final_internal_frame.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 42,
+      "name": "Power Cable & Cable Guide",
+      "weight": 120.0,
+      "weight_unit": "g",
+      "material": "9",
+      "color": null,
+      "image": {
+        "path": "images/final_power_cable.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 43,
+      "name": "Switch Assembly (Power Switch)",
+      "weight": 25.0,
+      "weight_unit": "g",
+      "material": "9",
+      "color": null,
+      "image": {
+        "path": "images/final_power_switch.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    },
+    {
+      "node_id": 44,
+      "name": "Remaining Plastic Structure & Small Parts",
+      "weight": 350.0,
+      "weight_unit": "g",
+      "material": "1",
+      "color": null,
+      "image": {
+        "path": "images/final_small_parts.jpg",
+        "is_url": false
+      },
+      "kept_whole": false,
+      "contained_leaf_count": null
+    }
+  ]
+}
