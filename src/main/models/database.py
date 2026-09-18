@@ -270,7 +270,6 @@ class DatabaseManager:
             ''')
 
             # ==================== INDEXES ====================
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_material_color ON material(color_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_root_component_color ON root_component(color_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_root_component_material ON root_component(material_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_intermediate_root ON intermediate_component(root_component_id)')
