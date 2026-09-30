@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://futurdata/disassembly-wizard/ir_schema.json",
+  "title": "Disassembly Wizard \u2014 Intermediate Representation (IR)",
+  "description": "The contract between the load phase and the output generators (PDF, TXT, MD, HTML+JS, PPTX, DOCX, VIDEO). One linearized disassembly guide derived from a Builder graph. Versioned via schema_version; the load phase keeps this shape stable. 1.1: every step declares its `input` (the piece the operation is performed on), `continues_as` lists ALL continuing composites, and the guide carries a top-level `tools` union (FR 1.3).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "product",
+    "depth",
+    "tools",
+    "steps",
+    "warnings",
+    "bill_of_materials"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "1.1",
+        "1.2"
+      ],
+      "description": "1.2 adds optional resolved material_details; 1.1 inputs remain supported."
+    },
+    "product": {
+      "$ref": "#/$defs/component",
+      "description": "The root product being disassembled."
+    },
+    "depth": {
+      "$ref": "#/$defs/depth",
+      "description": "The disassembly depth that was applied when producing this guide."
+    },
+    "tools": {
+      "type": "array",
+      "description": "Every tool used across the whole guide: the union of the steps' tools_required, de-duplicated case-insensitively, in first-appearance order. Render it at the top of your output next to the bill of materials; you never need to recompute it.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "The disassembly operations, in execution order. Iterate this in order to render the guide.",
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Validation findings. The guide is produced even when warnings exist; surfacing them to the user is recommended but never required.",
+      "items": {
+        "$ref": "#/$defs/warning"
+      }
+    },
+    "bill_of_materials": {
+      "description": "Flat list of the final leaf parts (null if it was not requested). Weights sum to the product weight when all weights are known.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "image": {
+      "description": "An image reference, or null when the node has no image. The path is passed through unchanged from the source; is_url tells you whether to fetch a remote URL or load a local/relative path.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "path",
+            "is_url"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "is_url": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "component": {
+      "type": "object",
+      "description": "A part: the product, an extracted output, a kept-whole block, or a BoM line. Optional fields are present but may be null.",
+      "required": [
+        "node_id",
+        "name",
+        "weight",
+        "weight_unit",
+        "material",
+        "color",
+        "image",
+        "kept_whole",
+        "contained_leaf_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "type": "integer",
+          "description": "Source node id, for cross-referencing back to the original model."
+        },
+        "name": {
+          "type": "string"
+        },
+        "weight": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Numeric weight, or null if unknown."
+        },
+        "weight_unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "material": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "image": {
+          "$ref": "#/$defs/image"
+        },
+        "kept_whole": {
+          "type": "boolean",
+          "description": "True if this is a sub-assembly the user chose to keep intact (depth cut), rather than a natural final part."
+        },
+        "contained_leaf_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "For a kept-whole block, how many leaf parts are hidden inside it; null otherwise."
+        },
+        "material_details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "description": "One atomic instruction in a step's ordered instruction chain (the 'how').",
+      "required": [
+        "node_id",
+        "text",
+        "tools",
+        "image"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "type": "integer"
+        },
+        "text": {
+          "type": "string",
+          "description": "The human-readable instruction."
+        },
+        "tools": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Tool(s) for this instruction as the source gave them (may be a comma-separated list), or null. The step-level tools_required is the split, de-duplicated form."
+        },
+        "image": {
+          "$ref": "#/$defs/image"
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "description": "One disassembly operation. Narration: take `input`, perform `operation` following `actions` in order, obtain `outputs`; each entry of `continues_as` is opened by a LATER step \u2014 the one whose input.node_id matches. Steps are ordered depth-first (one branch completed before the next), so do not assume the next step in the list continues the current one: the `input` field is the reliable link.",
+      "required": [
+        "index",
+        "operation",
+        "input",
+        "actions",
+        "outputs",
+        "continues_as",
+        "tools_required"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "description": "1-based position in the global execution order."
+        },
+        "operation": {
+          "type": "string",
+          "description": "The operation name (the diamond label)."
+        },
+        "input": {
+          "$ref": "#/$defs/component",
+          "description": "The component this operation is performed ON: the product for a starting step, a continuing composite afterwards."
+        },
+        "actions": {
+          "type": "array",
+          "description": "The ordered instruction chain for this operation.",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "description": "The parts produced by this operation (final leaves and any kept-whole blocks).",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "continues_as": {
+          "type": "array",
+          "description": "ALL composites that carry the disassembly forward, in descent order (a disassembly may branch). Empty when this branch is finished \u2014 which does not mean the guide is over.",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "tools_required": {
+          "type": "array",
+          "description": "De-duplicated (case-insensitive) union of the tools used across this step's actions, split on ','; when the actions carry no tools (a self-explanatory operation), the operation's own aggregate tools are used instead.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "warning": {
+      "type": "object",
+      "description": "A validation finding localized to specific node(s).",
+      "required": [
+        "rule",
+        "severity",
+        "message",
+        "node_ids"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "type": "string",
+          "description": "Stable identifier of the rule that fired."
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "description": "Gravity. All severities are non-blocking; the guide is still produced."
+        },
+        "message": {
+          "type": "string"
+        },
+        "node_ids": {
+          "type": "array",
+          "description": "Source id(s) of the affected element(s).",
+          "items": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "depth": {
+      "type": "object",
+      "required": [
+        "mode",
+        "keep_whole_ids"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "full",
+            "keep_main",
+            "manual"
+          ],
+          "description": "full = fully disassembled; keep_main = main assemblies kept whole; manual = specific nodes kept whole."
+        },
+        "keep_whole_ids": {
+          "type": "array",
+          "description": "For manual mode, the node ids kept whole; empty otherwise.",
+          "items": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
