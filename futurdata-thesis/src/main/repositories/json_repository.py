@@ -38,7 +38,7 @@ class JsonRepository:
     )
 
     def __init__(self, file_path: str | None = None):
-        app_dir = Path("D:/.disassembly_diagram")
+        app_dir = Path.home()
         self.file_path = Path(file_path) if file_path else app_dir / "ariadne_data.json"
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = RLock()
