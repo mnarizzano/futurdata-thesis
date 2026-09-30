@@ -22,7 +22,7 @@ class ImageHandler:
                      Defaults to ~/.disassembly_diagram/images/
         """
         if base_dir is None:
-            app_dir = "D:/.disassembly_diagram"
+            app_dir = os.path.join(os.path.expanduser("~"), ".disassembly_diagram")
             self.images_dir = os.path.join(app_dir, "images")
         else:
             self.images_dir = os.path.join(base_dir, "images")
