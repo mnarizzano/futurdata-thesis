@@ -73,6 +73,13 @@ def render_txt(ir):
                 f"Operation: {step['operation']}"
             )
 
+        source = step.get("input") or {}
+        lines.append("Input: " + str(source.get("name", "Unknown")))
+        if source.get("image"):
+            lines.append("Starting assembly image: " + format_value(source["image"]))
+        if step.get("image"):
+            lines.append("Operation illustration: " + format_value(step["image"]))
+
         # ACTIONS
         actions = step.get("actions", [])
 
@@ -113,7 +120,8 @@ def render_txt(ir):
 
         # TOOLS
         tools = (
-            step.get("tools")
+            step.get("tools_required")
+            or step.get("tools")
             or step.get("required_tools")
             or []
         )
@@ -191,7 +199,12 @@ def render_txt(ir):
             lines.append("")
             lines.append("Remaining assembly:")
 
-            if isinstance(continues_as, dict):
+            if isinstance(continues_as, list):
+                for component in continues_as:
+                    lines.append("  - " + str(component.get("name", "Unknown")))
+                    if component.get("image"):
+                        lines.append("    Image: " + format_value(component["image"]))
+            elif isinstance(continues_as, dict):
 
                 for key, value in continues_as.items():
 

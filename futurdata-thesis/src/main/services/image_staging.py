@@ -2,13 +2,15 @@
 import hashlib
 from pathlib import Path
 
-def stage_images(snapshot, root, handler):
+def stage_images(snapshot, root, handler, source_dir=None):
     root = Path(root).resolve()
     for shape in snapshot.get("shapes", []):
         ref = shape.get("image_path")
-        if not ref:
+        if not ref or str(ref).startswith(("http://", "https://", "data:")):
             continue
-        source = Path(handler.get_full_path(ref))
+        candidates = ([Path(source_dir) / ref] if source_dir else [])
+        candidates += [Path(handler.get_full_path(ref)), Path(ref)]
+        source = next((p for p in candidates if p.is_file()), candidates[0])
         if not source.is_file():
             continue
         content = source.read_bytes()

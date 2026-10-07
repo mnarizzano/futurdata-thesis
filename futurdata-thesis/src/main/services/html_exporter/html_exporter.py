@@ -41,18 +41,12 @@ class HTMLExporter:
                     c(value)
 
         c(ir.get("product", {}))
-        for s in ir.get("steps", []):
-            for a in s.get("actions", []):
-                c(a)
-            for o in s.get("outputs", []):
-                c(o)
-            c(s.get("continues_as") or {})
-        for p in ir.get("bill_of_materials", []):
-            c(p)
+        c(ir.get("steps", []))
+        c(ir.get("bill_of_materials") or [])
         for rp in paths:
             src = root / rp
             dst = out / rp
-            if src.exists():
+            if src.is_file() and src.resolve() != dst.resolve():
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
 

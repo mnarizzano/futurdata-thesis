@@ -285,6 +285,8 @@ class AppController:
         """Create an unsaved arrow after validating the existing graph grammar."""
         if not self._validate_workflow_connection(from_shape, to_shape):
             return False
+        if self.diagram.has_edge(from_shape, to_shape):
+            return False
         arrow = ArrowShape(0, 0, from_shape, to_shape)
         arrow.update_from_shapes()
         command = AddShapeCommand(self.diagram, arrow)
@@ -295,6 +297,8 @@ class AppController:
     def _create_connection(self, from_shape, to_shape):
         """Create an unsaved connection after validating the existing graph grammar."""
         if not self._validate_workflow_connection(from_shape, to_shape):
+            return False
+        if self.diagram.has_edge(from_shape, to_shape):
             return False
         connection = Connection(from_shape, to_shape)
         connection.auto_calculate_anchors()
@@ -386,9 +390,9 @@ class AppController:
             return {"root": "Root Component", "leaf": "Leaf Component",
                     "intermediate": "Composite Component"}.get(subtype, "Component")
         if isinstance(shape, ActionCircle):
-            return "Action"
-        if isinstance(shape, DiamondStep):
             return "Step"
+        if isinstance(shape, DiamondStep):
+            return "Action"
         return "Arrow"
 
     def _reset_interaction(self):
@@ -419,8 +423,8 @@ class AppController:
             return
 
         self._reset_interaction()
-        x, y = self._get_next_shape_position()
-        shape = self._create_shape_instance(shape_type, x, y)
+        shape = self._create_shape_instance(shape_type, 0, 0)
+        shape.x, shape.y = self._get_next_shape_position(shape)
 
         # Handle specialized component types
         if shape_type.startswith("component_"):
@@ -442,44 +446,11 @@ class AppController:
         self._update_view()
         self.view.set_status(f"Added {self._shape_display_name(shape)}", FeedbackType.SUCCESS)
 
-    def _get_next_shape_position(self) -> Tuple[float, float]:
-        """
-        Return a position for new shape in visible viewport area.
-        Tries to place shapes in visible area, staggers if multiple shapes added.
-        """
-        # Get current viewport (visible area)
-        x_view = self.view.canvas.xview()
-        y_view = self.view.canvas.yview()
-        
-        canvas_width = self.view.canvas.canvas_width
-        canvas_height = self.view.canvas.canvas_height
-        visible_width = self.view.canvas.winfo_width()
-        visible_height = self.view.canvas.winfo_height()
-        
-        # If canvas not rendered yet, use default
-        if visible_width <= 1 or visible_height <= 1:
-            base_x, base_y = 700, 400
-            index = len(self.diagram.shapes)
-            col = index % 4
-            row = index // 4
-            return base_x + (col * 220), base_y + (row * 140)
-        
-        # Calculate visible area in canvas coordinates
-        visible_x1 = x_view[0] * canvas_width
-        visible_y1 = y_view[0] * canvas_height
-        
-        # Place shape in center of visible area with stagger
-        center_x = visible_x1 + (visible_width / (2 * self.view.canvas.zoom_factor))
-        center_y = visible_y1 + (visible_height / (2 * self.view.canvas.zoom_factor))
-        
-        # Add stagger based on recent shapes (last 10)
-        recent_shapes = self.diagram.shapes[-10:]
-        stagger_offset = len(recent_shapes) % 5
-        
-        x = center_x + (stagger_offset * 50)
-        y = center_y + (stagger_offset * 40)
-        
-        return x, y
+    def _get_next_shape_position(self, shape=None) -> Tuple[float, float]:
+        """Ask the View for initial document coordinates; creation stays undoable."""
+        if shape is None:
+            shape = ComponentBox(0, 0)
+        return self.view.canvas.find_free_position(shape, self.diagram)
 
     def _create_shape_instance(self, shape_type: str, x: float, y: float):
         """Create a shape object of the given type at (x, y)."""

@@ -211,10 +211,10 @@ def normalize(raw: dict[str, Any], source_path: str | None = None) -> Disassembl
                 f"connections[{i}] is missing an endpoint; expected either "
                 "'from_shape_id'/'to_shape_id' or 'from_id'/'to_id'."
             )
-    if connections:
-        edges = tuple(_edge_from_connection(c) for c in connections)
-    else:
-        edges = tuple(_edge_from_arrow(a) for a in arrow_shapes)
+    edges = tuple(dict.fromkeys(
+        [_edge_from_connection(c) for c in connections]
+        + [_edge_from_arrow(a) for a in arrow_shapes]
+    ))
 
     # --- 4. precompute adjacency --------------------------------------------
     out_acc: dict[int, list[int]] = {}

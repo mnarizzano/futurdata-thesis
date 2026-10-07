@@ -120,6 +120,7 @@ def _step_to_dict(s: Step) -> dict[str, Any]:
     return {
         "index": s.index,
         "operation": s.operation,
+        "image": _image_to_dict(s.image_path),
         # schema 1.1: the component this operation is performed ON. Always
         # present — it is what lets a consumer narrate "now disassembling X"
         # on a branched model instead of treating the step as a black box.

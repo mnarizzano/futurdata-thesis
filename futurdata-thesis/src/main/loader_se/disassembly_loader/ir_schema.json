@@ -247,6 +247,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "image": {
+          "$ref": "#/$defs/image"
         }
       }
     },

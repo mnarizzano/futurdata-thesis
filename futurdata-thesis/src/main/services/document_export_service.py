@@ -38,7 +38,9 @@ class DocumentExportService:
         snapshot = self.diagram_exporter.serialize_active_diagram(diagram)
         with tempfile.TemporaryDirectory(prefix=f"ariadne_{fmt}_") as td:
             root = Path(td)
-            self._stage_images(snapshot, root)
+            from .image_staging import stage_images
+            stage_images(snapshot, root, get_image_handler(),
+                         Path(diagram.file_path).parent if diagram.file_path else None)
             source = root / "diagram.json"
             source.write_text(
                 json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -131,6 +133,10 @@ class DocumentExportService:
         for step in guide.steps:
             doc.add_heading(f"Step {step.index}: {step.operation}", 1)
             doc.add_paragraph(f"Input: {step.input.name}")
+            add_image(step.input.image_path)
+            if step.image_path:
+                doc.add_paragraph("Operation illustration")
+                add_image(step.image_path, 4.5)
             if step.tools_required:
                 doc.add_paragraph("Tools required: " + ", ".join(step.tools_required))
             for action in step.actions:

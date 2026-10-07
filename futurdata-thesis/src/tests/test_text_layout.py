@@ -80,7 +80,8 @@ def test_native_canvas_grows_and_keeps_text_inside_shape(kind):
         # All label corners must lie within curved as well as rectangular shapes.
         for x, y in ((left, top), (right, top), (left, bottom), (right, bottom)):
             assert canvas.render_shape(shape).contains_point(x, y)
-        assert canvas.render_bounds(neighbor)[1] >= canvas.render_bounds(shape)[3] + 20
+        assert (canvas.render_shape(neighbor).x, canvas.render_shape(neighbor).y) == (300, 430)
+        assert (canvas.render_shape(shape).x, canvas.render_shape(shape).y) == (300, 300)
         assert canvas.render_shape(shape)._display_text.replace('\n', '') == shape.text
         positions = [(s.x, s.y) for s in diagram.shapes]
         canvas.redraw_all(diagram)

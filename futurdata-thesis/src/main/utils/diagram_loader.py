@@ -121,6 +121,7 @@ class DiagramLoader:
         
         # 6. Create connections based on relationships
         self._create_connections(diagram, shape_map, product_id)
+        diagram.deduplicate_edges()
         
         return diagram
     

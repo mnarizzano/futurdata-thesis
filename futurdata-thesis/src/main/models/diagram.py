@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 from datetime import datetime
 from uuid import uuid4
-from .shape import Shape
+from .shape import Shape, ArrowShape
 from .connection import Connection
 
 
@@ -29,6 +29,8 @@ class Diagram:
         self.last_json_sync = None  
 
     def add_shape(self, shape: Shape):
+        if isinstance(shape, ArrowShape) and self.has_edge(shape.from_shape, shape.to_shape):
+            return
         self.shapes.append(shape)
         self.modified = True
 
@@ -43,10 +45,36 @@ class Diagram:
             self.selected_shapes.remove(shape)
         self.modified = True
 
+    def has_edge(self, source, target):
+        if source is None or target is None:
+            return False
+        return any(edge.from_shape is source and edge.to_shape is target
+                   for edge in [*self.connections,
+                                *(s for s in self.shapes if isinstance(s, ArrowShape))])
+
+    def deduplicate_edges(self):
+        """Normalize legacy mixed edge records at load boundaries, retaining arrows."""
+        seen = set()
+        shapes = []
+        for shape in self.shapes:
+            if isinstance(shape, ArrowShape) and shape.from_shape and shape.to_shape:
+                key = (shape.from_shape.id, shape.to_shape.id)
+                if key in seen:
+                    continue
+                seen.add(key)
+            shapes.append(shape)
+        self.shapes = shapes
+        connections = []
+        for edge in self.connections:
+            key = (edge.from_shape.id, edge.to_shape.id)
+            if key not in seen:
+                connections.append(edge)
+                seen.add(key)
+        self.connections = connections
+
     def add_connection(self, connection: Connection):
-        for conn in self.connections:
-            if conn.from_shape == connection.from_shape and conn.to_shape == connection.to_shape:
-                return
+        if self.has_edge(connection.from_shape, connection.to_shape):
+            return
         self.connections.append(connection)
         self.modified = True
 
@@ -162,5 +190,6 @@ class Diagram:
                 if connection.id >= Connection._id_counter:
                     Connection._id_counter = connection.id
 
+        diagram.deduplicate_edges()
         diagram.modified = False
         return diagram

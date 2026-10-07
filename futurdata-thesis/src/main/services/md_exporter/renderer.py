@@ -88,6 +88,7 @@ def render_document(
     page_steps: tuple[Step, ...],
     options: "ExportOptions",
     page: PageInfo,
+    step_links=None,
 ) -> str:
     """
     Render one page of the guide as a Markdown string (ends with a newline).
@@ -114,16 +115,9 @@ def render_document(
         lines += _render_toc(page_steps)
 
     if page_steps:
-        last_index = page_steps[-1].index
+        targets = {s.input.node_id: s.index for s in guide.steps}
         for step in page_steps:
-            #The continuation link of the last step of a page must point into
-            #the next file (FR 19.0): '#step-N' alone would be a dead anchor
-            #here, because step N lives on the following page.
-            link_prefix = (
-                page.next_path
-                if (step.index == last_index and page.next_path) else ""
-            )
-            lines += _render_step(step, options, link_prefix)
+            lines += _render_step(step, options, targets=targets, step_links=step_links)
     elif page.page_number == 1:
         #Empty guide (best-effort on a malformed model, FR 2.3): say so
         #explicitly, an empty document would look like an export bug.
@@ -239,7 +233,7 @@ def _render_toc(page_steps: tuple[Step, ...]) -> list[str]:
 
 
 def _render_step(
-    step: Step, options: "ExportOptions", link_prefix: str = ""
+    step: Step, options: "ExportOptions", link_prefix: str = "", targets=None, step_links=None
 ) -> list[str]:
     """
     One disassembly operation (= one diamond, FR 10.0) as one grouped section:
@@ -252,6 +246,12 @@ def _render_step(
         md.heading(2, f"Step {step.index} — {md.escape_md(step.operation)}"),
         "",
     ]
+
+    lines += [f"**Input:** {md.escape_md(step.input.name)}", ""]
+    if options.include_images and step.input.image_path:
+        lines += [md.image(step.input.name, step.input.image_path), ""]
+    if options.include_images and step.image_path:
+        lines += ["Operation illustration", md.image(step.operation, step.image_path), ""]
 
     if step.tools_required:
         tools = ", ".join(md.escape_md(t) for t in step.tools_required)
@@ -277,18 +277,13 @@ def _render_step(
         lines.append("")
 
     if step.continues_as:
-        #continues_as is a tuple[Component, ...] (disassembly_loader
-        #models.py: output branching support). We point every target at
-        #step.index + 1 rather than looking up each continuation by
-        #node_id, which holds for every linear model this exporter has
-        #been tested against; we don't yet have a branched fixture to
-        #drive a per-target lookup.
         for target in step.continues_as:
-            lines += [
-                f"➡️ Continue disassembling **{md.escape_md(target.name)}** "
-                f"in [Step {step.index + 1}]({link_prefix}#step-{step.index + 1})",
-                "",
-            ]
+            target_index = (targets or {}).get(target.node_id)
+            label = f"Remaining assembly: **{md.escape_md(target.name)}**"
+            if target_index is not None:
+                href = (step_links or {}).get(target_index, f"#step-{target_index}")
+                label += f" ([Step {target_index}]({href}))"
+            lines += [label, ""]
     else:
         lines += ["🏁 *End of this disassembly branch.*", ""]
     return lines

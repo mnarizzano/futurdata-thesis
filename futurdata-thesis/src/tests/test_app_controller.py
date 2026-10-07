@@ -34,6 +34,7 @@ def make_controller():
         mock_get_db.return_value = MagicMock()
         controller = AppController()
     controller.view = MagicMock()
+    controller.view.canvas.find_free_position.return_value = (400, 300)
     controller.view.ask_confirmation.side_effect = lambda *args: __import__('tkinter').messagebox.askyesno(*args)
     return controller
 
@@ -317,11 +318,12 @@ class AddShapeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.controller._create_shape_instance("hexagon", 0, 0)
 
-    def test_default_positions_are_staggered(self):
-        first = self.controller._get_next_shape_position()
+    def test_initial_position_is_chosen_by_view(self):
+        self.controller.view.canvas.find_free_position.return_value = (420, 310)
         self.controller.add_shape("action")
-        second = self.controller._get_next_shape_position()
-        self.assertNotEqual(first, second)
+        shape = self.diagram.shapes[0]
+        self.assertEqual((shape.x, shape.y), (420, 310))
+        self.controller.view.canvas.find_free_position.assert_called_once_with(shape, self.diagram)
 
 
 class SelectionTests(unittest.TestCase):

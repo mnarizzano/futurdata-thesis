@@ -144,7 +144,10 @@ class MDExporter:
                     if page_number < len(pages) else None
                 ),
             )
-            text = renderer.render_document(guide, page_steps, options, nav)
+            links = {step.index: (("" if page_index == page_number-1 else os.path.basename(paths[page_index]))
+                                  + f"#step-{step.index}")
+                     for page_index, steps in enumerate(pages) for step in steps}
+            text = renderer.render_document(guide, page_steps, options, nav, links)
             path = paths[page_number - 1]
             self._write(text, path)
             written.append(path)

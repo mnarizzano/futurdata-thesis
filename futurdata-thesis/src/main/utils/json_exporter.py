@@ -423,6 +423,8 @@ class EnhancedJSONExporter:
                         conn.auto_calculate_anchors()
                     diagram.connections.append(conn)
             
+            diagram.deduplicate_edges()
+
             # Restore images if available
             self._restore_diagram_images(diagram, file_path)
             diagram.import_warnings.extend(catalog_warnings)

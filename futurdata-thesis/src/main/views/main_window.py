@@ -182,8 +182,8 @@ class MainWindow:
         ttk.Button(palette_frame, text="▭ Root Component", command=lambda: self.controller.add_shape("component_root")).pack(fill="x", pady=2)
         ttk.Button(palette_frame, text="▭ Leaf Component", command=lambda: self.controller.add_shape("component_leaf")).pack(fill="x", pady=2)
         ttk.Button(palette_frame, text="▭ Composite Comp.", command=lambda: self.controller.add_shape("component_composite")).pack(fill="x", pady=2)
-        ttk.Button(palette_frame, text="○ Action", command=lambda: self.controller.add_shape("action")).pack(fill="x", pady=2)
-        ttk.Button(palette_frame, text="◇ Step", command=lambda: self.controller.add_shape("diamond")).pack(fill="x", pady=2)
+        ttk.Button(palette_frame, text="○ Step", command=lambda: self.controller.add_shape("action")).pack(fill="x", pady=2)
+        ttk.Button(palette_frame, text="◇ Action", command=lambda: self.controller.add_shape("diamond")).pack(fill="x", pady=2)
         ttk.Button(palette_frame, text="→ Arrow", command=lambda: self.controller.add_shape("arrow")).pack(fill="x", pady=2)
 
         canvas_frame = ttk.Frame(self.paned_window, width=200)

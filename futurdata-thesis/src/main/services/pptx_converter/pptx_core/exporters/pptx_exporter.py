@@ -96,6 +96,20 @@ class PPTXExporter(Exporter):
                 self._detailed_step_slides(prs, document, group[0], options)
             else:
                 self._grouped_step_slide(prs, document, group, options)
+                if options.include_images:
+                    for step in group:
+                        slide = self._blank(prs)
+                        source = step.source
+                        self._section_title(slide, f"Step {step.index} of {len(document.steps)}", step.operation,
+                                            f"Starting assembly: {source.name if source else 'Unknown'}")
+                        if not self._picture(slide, source.image if source else None,
+                                             document.source_dir, 0.7, 1.8, 7.2, 4.9):
+                            self._text(slide, "No image available", 0.7, 3.5, 7.2, 0.6, 18)
+                        self._step_result_panel(slide, document, step, 8.3, 1.8, 4.3, 4.9, options)
+                        for batch in chunks(self._step_images(step), 3):
+                            media_slide = self._blank(prs)
+                            self._section_title(media_slide, f"Step {step.index}", step.operation, "Supporting illustrations")
+                            self._image_gallery(media_slide, batch, document.source_dir, 0.7, 1.8, 11.9, 4.9)
 
         if options.include_closing:
             self._closing_slide(prs, document, selected_steps)
@@ -405,6 +419,16 @@ class PPTXExporter(Exporter):
     def _detailed_step_slides(self, prs, document, step, options):
         """Render one parent operation, paginating long atomic-action lists."""
 
+        source = step.source
+        if options.include_images:
+            slide = self._blank(prs)
+            self._section_title(slide, f"Step {step.index} of {len(document.steps)}",
+                                step.operation, f"Starting assembly: {source.name if source else 'Unknown'}")
+            if not self._picture(slide, source.image if source else None,
+                                 document.source_dir, 0.7, 1.8, 7.2, 4.9):
+                self._text(slide, "No image available", 0.7, 3.5, 7.2, 0.6, 18)
+            self._step_result_panel(slide, document, step, 8.3, 1.8, 4.3, 4.9, options)
+
         # Six action rows fit safely in the available content region. Longer
         # lists are continued on additional slides instead of shrinking text.
         action_lines = [normalize_text(action.text) for action in step.actions if normalize_text(action.text)]
@@ -440,8 +464,9 @@ class PPTXExporter(Exporter):
             self._text(slide, source_text, 0.9, 1.82, 9.0, 0.22, 11, True, self.INK)
             self._text(slide, method_text, 10.35, 1.82, 1.95, 0.22, 9, True, self.TEAL, PP_ALIGN.RIGHT)
 
-            images = self._step_images(step)
-            image_count = len(images) if options.include_images else 0
+            page_images = [(a.image, f"Action {i+1}: {a.text}") for i,a in enumerate(step.actions)
+                           if a.image and (page-1)*6 <= i < page*6]
+            image_count = len(page_images) if options.include_images else 0
             content_width = 7.45
             self._rect(slide, 0.65, 2.4, content_width, 4.35, self.WHITE, self.LINE)
             self._text(slide, "ATOMIC ACTIONS", 0.95, 2.68, 3.0, 0.25, 10, True, self.TEAL)
@@ -453,7 +478,11 @@ class PPTXExporter(Exporter):
                 y += 0.57
 
             if image_count:
-                self._image_gallery(slide, images[:3], document.source_dir, 8.35, 2.4, 4.3, 2.05)
+                self._image_gallery(slide, page_images[:3], document.source_dir, 8.35, 2.4, 4.3, 2.05)
+                for batch in chunks(page_images[3:], 3):
+                    media_slide = self._blank(prs)
+                    self._section_title(media_slide, f"Step {step.index}", step.operation, "Instruction illustrations")
+                    self._image_gallery(media_slide, batch, document.source_dir, 0.7, 1.8, 11.9, 4.9)
                 output_y = 4.65
                 output_h = 2.1
             else:
@@ -463,6 +492,15 @@ class PPTXExporter(Exporter):
             right_w = 4.3
             self._rect(slide, right_x, output_y, right_w, output_h, self.WHITE, self.LINE)
             self._step_result_panel(slide, document, step, right_x, output_y, right_w, output_h, options)
+
+        if options.include_images:
+            supporting = [(step.image, "Operation illustration")] if step.image else []
+            supporting += [(c.image, f"Removed part: {c.name}") for c in step.outputs if c.image]
+            supporting += [(c.image, f"Remaining assembly: {c.name}") for c in step.continues_as if c.image]
+            for batch in chunks(supporting, 3):
+                slide = self._blank(prs)
+                self._section_title(slide, f"Step {step.index}", step.operation, "Operation and result illustrations")
+                self._image_gallery(slide, batch, document.source_dir, 0.7, 1.8, 11.9, 4.9)
 
     def _step_images(self, step: Step) -> list[tuple[str, str]]:
         """Collect and de-duplicate images from operation, actions and outputs."""
@@ -490,6 +528,8 @@ class PPTXExporter(Exporter):
     def _image_gallery(self, slide, images, source_dir, x, y, w, h):
         self._rect(slide, x, y, w, h, self.WHITE, self.LINE)
         count = len(images)
+        if not count:
+            return
         box_w = (w - 0.3 - 0.12 * (count - 1)) / count
         for index, (value, caption) in enumerate(images):
             left = x + 0.15 + index * (box_w + 0.12)

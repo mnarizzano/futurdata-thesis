@@ -42,8 +42,8 @@ def palette_button(view, text):
     ("Root Component", ComponentBox, "Added Root Component"),
     ("Leaf Component", ComponentBox, "Added Leaf Component"),
     ("Composite Comp.", ComponentBox, "Added Composite Component"),
-    ("Step", DiamondStep, "Added Step"),
-    ("Action", ActionCircle, "Added Action"),
+    ("Step", ActionCircle, "Added Step"),
+    ("Action", DiamondStep, "Added Action"),
 ])
 def test_palette_feedback_matches_created_node(app, label, model, message):
     controller, view = app
@@ -133,7 +133,7 @@ def test_cursor_modes_creation_and_arrow_completion(app):
     controller.add_shape("arrow")
     palette_button(view, "Root Component").invoke()
     assert not controller.arrow_mode and view.canvas.cget("cursor") == ""
-    palette_button(view, "Step").invoke()
+    palette_button(view, "Action").invoke()
     source, target = controller.diagram.shapes[:2]
     controller.add_shape("arrow")
     controller._handle_arrow_connection_click(source)

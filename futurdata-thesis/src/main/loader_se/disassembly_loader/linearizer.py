@@ -10,12 +10,12 @@ asks "in what order does one take it apart?".
 
 THE GRAMMAR THIS ENCODES (confirmed empirically on Bialetti / Maria / Epson):
   - A diamond is a MACRO operation. Its ACTION children form a linear CHAIN
-    (action_1 -> action_2 -> ...) describing HOW to perform it; the chain never
-    branches and never mixes with components, so its order is purely topological.
-  - A diamond's COMPONENT children are the RESULTS. At most ONE of them
-    "continues" (leads onward to a further diamond); the rest are leaf outputs.
+    (action_1 -> action_2 -> ...) describing HOW to perform it. Each action may
+    also connect to resulting Components; instruction order follows action edges.
+  - COMPONENT children of the diamond or its actions are the RESULTS. Those
+    leading onward to another diamond continue; terminal Components are removed parts.
     Components are siblings with no topological order among them, so they are
-    ordered by canvas geometry (x, then y) — the only ordering signal available.
+    ordered by stable node identity — the only ordering signal available.
   - Every diamond is reachable from the single root by following continuations.
 
 TRAVERSAL ORDER: depth-first (DFS), one branch fully before the next. A
@@ -61,7 +61,7 @@ def linearize(
     Produce the ordered tuple of Steps for the given graph and depth choice.
 
     `traversal` controls how a grammar-violating graph is handled (orthogonal to
-    depth): STRICT (default) follows only the grammatical continuation chain;
+    depth): STRICT (default) follows all role-valid operation branches;
     LENIENT (not yet implemented) would maximize coverage on malformed graphs.
 
     Returns an empty tuple for an empty graph (validation reports that
@@ -72,7 +72,7 @@ def linearize(
         raise NotImplementedError(
             "LENIENT traversal is reserved for a future need and not yet "
             "implemented. Use TraversalMode.STRICT (the default), which follows "
-            "the grammatical continuation chain. LENIENT would visit all reachable "
+            "all role-valid operation branches. LENIENT would visit all reachable "
             "diamonds including non-grammatical parallel branches; it was left "
             "unimplemented deliberately to avoid an untested second traversal "
             "until a real use case requires it."
@@ -91,8 +91,8 @@ def linearize(
     # through the traversal because the step must DECLARE its input (schema
     # 1.1): on a branched model a flat step list cannot otherwise tell which
     # piece a step opens. The stack is seeded in REVERSE order: it is LIFO, so
-    # pushing the first-by-geometry diamond LAST makes it pop FIRST, giving
-    # left-to-right DFS order. This reversed() is the classic stack-for-DFS
+    # pushing the first-by-identity diamond LAST makes it pop FIRST, giving
+    # stable DFS order. This reversed() is the classic stack-for-DFS
     # subtlety — without it the branches come out mirrored.
     start_diamonds = _ordered_next_diamonds(graph, root)
     stack: list[tuple[int, int, int]] = [
@@ -141,16 +141,13 @@ def _build_step(
 
     Separates the diamond's children by ROLE (by NodeType, never by array
     position): the action child opens the instruction chain; the component
-    children are the results. Among the components, the one that continues is
+    children of the diamond and its actions are the results. A continuing component is
     found by TOPOLOGY (it leads onward to a diamond); the rest are leaves.
 
-    GRAMMAR (supervisor-confirmed): a composite continues into EXACTLY ONE
-    operation — disassembly is a linear chain ("extract one, the rest
-    continues"), not a tree. So at most one component continues, and that
-    component leads to exactly one onward diamond. A component feeding several
-    diamonds is an anomaly (reported by rule_composite_single_continuation); here
-    we proceed best-effort by following ONE continuation (the first by geometry)
-    and ignoring the rest — following them all would encode the wrong grammar.
+    A Component may feed several operations (for example front and rear panel
+    removal). Every operation is visited, using that Component as its input.
+    Several continuing Components and further nested branches are supported too.
+    A visited set emits each operation once and prevents loops on cyclic graphs.
 
     Depth cut: for the continuing component, ask should_stop(). If we stop, the
     component is emitted as a kept-whole leaf output (with its hidden-leaf count)
@@ -161,33 +158,29 @@ def _build_step(
     # --- the action chain (linear, topological order) ----------------------
     actions = _collect_action_chain(graph, diamond_id)
 
-    # --- the component children, ordered by geometry ------------------------
+    # Outputs may be attached to the operation or any of its instructions.
+    # Traverse only this operation's action chain: never follow a Component
+    # through its next operation when collecting the current operation's parts.
+    output_sources = [diamond_id, *(action.node_id for action in actions)]
     component_children = [
-        k for k in graph.out_adj.get(diamond_id, ())
-        if k in graph.nodes and graph.nodes[k].type is NodeType.COMPONENT
+        child for source in output_sources for child in graph.out_adj.get(source, ())
+        if child in graph.nodes and graph.nodes[child].type is NodeType.COMPONENT
     ]
-    component_children = _order_by_geometry(graph, component_children)
+    component_children = _order_by_identity(graph, component_children)
 
     outputs: list[Component] = []
     continues_as: list[Component] = []
     next_diamonds_to_descend: list[tuple[int, int]] = []
 
     for comp_id in component_children:
-        onward_diamond = _continuation_diamond(graph, comp_id)
+        onward_diamonds = _ordered_next_diamonds(graph, comp_id)
 
-        if onward_diamond is None:
+        if not onward_diamonds:
             # natural leaf: a final extracted part
             outputs.append(_to_component(graph.nodes[comp_id]))
             continue
 
-        # This component continues the disassembly. Per the supervisor-confirmed
-        # grammar, a single DIAMOND may produce SEVERAL continuing composites,
-        # each disassembled along its own branch (the structure is a tree that
-        # branches on a diamond's OUTPUTS — not a composite feeding two diamonds,
-        # which remains forbidden and is flagged by validation). So we descend
-        # into EVERY continuing output, not just the first. The traversal is DFS
-        # (one branch fully before the next), so the flat step list stays
-        # readable; the IR shape is unchanged.
+        # Record this remaining assembly once, then visit all its operations.
         if should_stop(depth, graph.nodes[comp_id], depth_level + 1):
             # depth cut: keep this sub-assembly whole, count what is hidden inside
             leaf_count = _count_hidden_leaves(graph, comp_id)
@@ -202,7 +195,7 @@ def _build_step(
             # second sub-assembly continues. The step that opens each entry is
             # the later step whose input.node_id matches comp.node_id.
             continues_as.append(comp)
-            next_diamonds_to_descend.append((onward_diamond, comp_id))
+            next_diamonds_to_descend.extend((diamond_id, comp_id) for diamond_id in onward_diamonds)
 
     step = Step(
         index=index,
@@ -212,6 +205,7 @@ def _build_step(
         outputs=tuple(outputs),
         continues_as=tuple(continues_as),
         tools_required=_collect_tools(actions, diamond),
+        image_path=diamond.image_path,
     )
     return step, next_diamonds_to_descend
 
@@ -285,27 +279,12 @@ def find_root(graph: DisassemblyGraph) -> int | None:
 
 
 def _ordered_next_diamonds(graph: DisassemblyGraph, node_id: int) -> list[int]:
-    """Diamonds directly reachable from a node, ordered by geometry."""
+    """Diamonds directly reachable from a node, ordered by stable node identity."""
     diamonds = [
         k for k in graph.out_adj.get(node_id, ())
         if k in graph.nodes and graph.nodes[k].type is NodeType.DIAMOND
     ]
-    return _order_by_geometry(graph, diamonds)
-
-
-def _continuation_diamond(graph: DisassemblyGraph, component_id: int) -> int | None:
-    """The diamond a component leads onward to, or None if it is a leaf.
-
-    By the grammar a continuing component has exactly one onward diamond; if a
-    malformed graph gives several, we take the first by geometry so we still
-    descend somewhere (best-effort)."""
-    onward = [
-        k for k in graph.out_adj.get(component_id, ())
-        if k in graph.nodes and graph.nodes[k].type is NodeType.DIAMOND
-    ]
-    if not onward:
-        return None
-    return _order_by_geometry(graph, onward)[0]
+    return _order_by_identity(graph, diamonds)
 
 
 def _collect_action_chain(graph: DisassemblyGraph, diamond_id: int) -> list[Action]:
@@ -318,20 +297,20 @@ def _collect_action_chain(graph: DisassemblyGraph, diamond_id: int) -> list[Acti
         (Bialetti / Maria / Epson). Order is topological.
       - FAN-OUT: several action children hanging directly off the diamond, not
         linked to each other (Oranfresh). Siblings have no topological order, so
-        they are ordered by geometry (x, then y) — exactly as component fan-outs
+        they are ordered by stable node identity — exactly as component fan-outs
         are (nespresso). A mix of the two is handled too.
 
     Algorithm: do a small traversal from the diamond following ONLY action edges,
     collecting every action reachable. Within the traversal, siblings are visited
-    in geometry order, so both a chain and a fan-out come out in a sensible
+    in stable node identity order, so both a chain and a fan-out come out in a sensible
     reading order. A `seen` set guards against a malformed cyclic action graph.
 
     This replaces the earlier chain-only logic, which silently collected just the
     first action when the others were fan-out children — losing most of the
     instructions with no warning (observed on Oranfresh: 7 instructions, 1 kept).
     """
-    # All action children directly under the diamond, in geometry order.
-    heads = _order_by_geometry(graph, [
+    # All action children directly under the diamond, in stable node identity order.
+    heads = _order_by_identity(graph, [
         k for k in graph.out_adj.get(diamond_id, ())
         if k in graph.nodes and graph.nodes[k].type is NodeType.ACTION
     ])
@@ -350,8 +329,8 @@ def _collect_action_chain(graph: DisassemblyGraph, diamond_id: int) -> list[Acti
         seen.add(current)
         actions.append(_to_action(graph.nodes[current]))
         # follow any action successors of this action (the chained case), in
-        # geometry order
-        successors = _order_by_geometry(graph, [
+        # stable node identity order
+        successors = _order_by_identity(graph, [
             k for k in graph.out_adj.get(current, ())
             if k in graph.nodes and graph.nodes[k].type is NodeType.ACTION
         ])
@@ -391,19 +370,9 @@ def _count_hidden_leaves(graph: DisassemblyGraph, component_id: int) -> int:
     return leaves
 
 
-def _order_by_geometry(graph: DisassemblyGraph, node_ids: list[int]) -> list[int]:
-    """
-    Order sibling node ids by canvas position: left-to-right (x), then top-to-
-    bottom (y). This is the only ordering signal for component fan-outs, whose
-    siblings have no topological order (confirmed on nespresso, where edge
-    arrival order is meaningless and x gives the natural reading order). Nodes
-    with missing coordinates sort first (treated as 0) deterministically.
-    """
-    def key(nid: int) -> tuple[float, float]:
-        node = graph.nodes[nid]
-        return (node.x if node.x is not None else 0.0,
-                node.y if node.y is not None else 0.0)
-    return sorted(node_ids, key=key)
+def _order_by_identity(graph: DisassemblyGraph, node_ids: list[int]) -> list[int]:
+    """Stable sibling order independent of canvas layout; chains follow edges."""
+    return sorted(set(node_ids))
 
 
 # =============================================================================

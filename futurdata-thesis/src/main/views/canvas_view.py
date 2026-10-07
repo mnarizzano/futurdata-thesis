@@ -327,25 +327,10 @@ class DiagramCanvas(tk.Canvas):
     def _layout_shapes(self, diagram):
         self._render_shapes.clear()
         models = [s for s in diagram.shapes if not isinstance(s, ArrowShape)]
-        changed = [self._measure_shape(s) for s in models]
-        shapes = [self._render_shapes[s] for s in models]
-        if not any(changed):
-            self.update_scroll_region_from_shapes(models, redraw_grid=False)
-            return
-        # Keep expanded shapes reachable in the canvas's positive scroll region.
-        dx = max(0, 20 - min(s.get_bounds()[0] for s in shapes))
-        dy = max(0, 20 - min(s.get_bounds()[1] for s in shapes))
-        for shape in shapes:
-            shape.move(dx, dy)
-        placed = []
-        for shape in sorted(shapes, key=lambda s: (s.y, s.x)):
-            for previous in placed:
-                left, top, right, bottom = shape.get_bounds()
-                pl, pt, pr, pb = previous.get_bounds()
-                if left < pr + 16 and right > pl - 16 and top < pb + 20:
-                    shape.y += pb + 20 - top
-            placed.append(shape)
+        for shape in models:
+            self._measure_shape(shape)
         self.update_scroll_region_from_shapes(models, redraw_grid=False)
+
 
     def draw_shape(self, shape: Shape, measure=True) -> None:
         """
@@ -530,9 +515,12 @@ class DiagramCanvas(tk.Canvas):
         Args:
             connection (Connection): The connection model entity configuration.
         """
-        if self._connection_items.get(connection) is not None:
-            self.delete(self._connection_items.get(connection))
         (x1, y1), (x2, y2) = self.render_endpoints(connection)
+        item = self._connection_items.get(connection)
+        if item is not None:
+            self.coords(item, x1 * self.zoom_factor, y1 * self.zoom_factor,
+                        x2 * self.zoom_factor, y2 * self.zoom_factor)
+            return
         dash = (5, 5) if connection.connection_type == "dashed" else None
         self._connection_items[connection] = self.create_line(
             x1, y1, x2, y2, fill=self.BORDER_COLOR, width=2,
@@ -645,10 +633,61 @@ class DiagramCanvas(tk.Canvas):
         """Update only connections attached to the given shapes."""
         for arrow in diagram.shapes:
             if isinstance(arrow, ArrowShape) and (arrow.from_shape in shapes or arrow.to_shape in shapes):
-                self.draw_shape(arrow)
+                item = self._canvas_items.get(arrow, {}).get("body")
+                if item is None:
+                    self.draw_shape(arrow)
+                else:
+                    start, end = self.render_endpoints(arrow)
+                    self.coords(item, *(v * self.zoom_factor for v in (*start, *end)))
         for conn in diagram.connections:
             if conn.from_shape in shapes or conn.to_shape in shapes:
                 self.draw_connection(conn)
+
+    def find_free_position(self, shape, diagram):
+        """Nearest free visible center, using measured bounds in document units."""
+        self._measure_shape(shape)
+        measured = self.render_shape(shape)
+        l, t, r, b = measured.get_bounds()
+        half_w, half_h = (r-l)/2, (b-t)/2
+        zoom = self.zoom_factor
+        width, height = max(1, self.winfo_width()), max(1, self.winfo_height())
+        left, top = self.canvasx(0)/zoom, self.canvasy(0)/zoom
+        right, bottom = self.canvasx(width)/zoom, self.canvasy(height)/zoom
+        cx, cy = (left+right)/2, (top+bottom)/2
+        margin = 16
+        obstacles = [self.render_bounds(s) for s in diagram.shapes
+                     if not isinstance(s, ArrowShape)]
+        def free(x, y):
+            return all(x+half_w+margin <= ol or x-half_w-margin >= ore
+                       or y+half_h+margin <= ot or y-half_h-margin >= ob
+                       for ol, ot, ore, ob in obstacles)
+        # Include exact obstacle boundaries as well as a regular visible grid.
+        xs = {cx, left+half_w+margin, right-half_w-margin}
+        ys = {cy, top+half_h+margin, bottom-half_h-margin}
+        for ol, ot, ore, ob in obstacles:
+            if ore < left-margin or ol > right+margin or ob < top-margin or ot > bottom+margin:
+                continue
+            xs.update((ol-half_w-margin, ore+half_w+margin))
+            ys.update((ot-half_h-margin, ob+half_h+margin))
+        xs.update(left+half_w+margin+i*40 for i in range(int((right-left)/40)+1))
+        ys.update(top+half_h+margin+i*40 for i in range(int((bottom-top)/40)+1))
+        xs = [x for x in xs if left+half_w <= x <= right-half_w]
+        ys = [y for y in ys if top+half_h <= y <= bottom-half_h]
+        candidates = [(x,y) for x in xs for y in ys
+                      if left+half_w <= x <= right-half_w
+                      and top+half_h <= y <= bottom-half_h]
+        candidates.sort(key=lambda p: ((p[0]-cx)**2+(p[1]-cy)**2, p[1], p[0]))
+        for x,y in candidates:
+            if free(x,y):
+                return x,y
+        # A full/small viewport has no fitting free slot: search just outside it.
+        step_x, step_y = 2*half_w+margin, 2*half_h+margin
+        for ring in range(1, len(obstacles)+2):
+            for dx,dy in ((0,ring),(ring,0),(0,-ring),(-ring,0)):
+                x,y = cx+dx*step_x, cy+dy*step_y
+                if free(x,y):
+                    return x,y
+        return max((bounds[2] for bounds in obstacles), default=right) + half_w + margin, cy
 
     def toggle_grid(self):
         """Toggles the grid overlay visibility status and triggers appropriate layout redraws."""

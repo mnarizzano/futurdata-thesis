@@ -351,28 +351,28 @@ def rule_no_cycles(graph: DisassemblyGraph) -> list[ValidationWarning]:
 
 
 def rule_action_degree(graph: DisassemblyGraph) -> list[ValidationWarning]:
-    """
-    Each step is an ATOMIC sub-step: at most one incoming and at most
-    one outgoing edge.
+    """An instruction has one owner/predecessor and at most one next instruction.
 
-    This catches the "action used as a fan-out hub" anomaly (nespresso: an
-    action with 4 component children — a job that belongs to a diamond). Each
-    offending action is reported individually so the user knows exactly which
-    one and its degrees (FR 2.2). Severity WARNING: the linearizer can still
-    emit the action's children as outputs, best-effort, after the warning.
+    Component children describe parts produced by that instruction. They do
+    not contribute to the action-chain degree and may coexist with a successor.
     """
     findings: list[ValidationWarning] = []
     for nid, node in graph.nodes.items():
         if node.type is not NodeType.ACTION:
             continue
-        indeg, outdeg = _in_degree(graph, nid), _out_degree(graph, nid)
+        indeg = _in_degree(graph, nid)
+        action_successors = {
+            child for child in graph.out_adj.get(nid, ())
+            if child in graph.nodes and graph.nodes[child].type is NodeType.ACTION
+        }
+        outdeg = len(action_successors)
         if indeg > 1 or outdeg > 1:
             findings.append(ValidationWarning(
                 rule="action_degree",
                 severity=Severity.WARNING,
-                message=f"Action node {nid} has in-degree {indeg} and out-degree "
-                        f"{outdeg}; a step must have at most one of "
-                        f"each (it is an atomic sub-step, not a fan-out hub).",
+                message=f"Action node {nid} has {indeg} incoming edges and "
+                        f"{outdeg} successor instructions; an instruction must "
+                        f"have at most one predecessor and one next instruction.",
                 node_ids=(nid,),
             ))
     return findings
@@ -520,21 +520,10 @@ def rule_composite_continuation_type(graph: DisassemblyGraph) -> list[Validation
 
 
 def rule_composite_single_continuation(graph: DisassemblyGraph) -> list[ValidationWarning]:
-    """
-    A composite component must continue into AT MOST ONE operation (diamond).
+    """Describe operation fan-out without treating it as an invalid graph.
 
-    GRAMMAR (confirmed directly by the supervisor): a composite is decomposed by
-    a SINGLE successive operation, never several in parallel. The disassembly of
-    a complex assembly is a LINEAR CHAIN of "extract one part, the rest
-    continues", not a tree: e.g. a motherboard yields {CPU, board-without-CPU} in
-    one operation, then board-without-CPU yields {RAM, board-without-CPU-RAM} in
-    the next — not {CPU, RAM, ...} from one composite at once.
-
-    A component with two or more onward diamonds (seen 4x in Epson, 0x in the
-    clean reference files) violates this and is reported per offending component,
-    naming the component and the diamonds it wrongly feeds (FR 2.2). Severity
-    WARNING: linearization proceeds best-effort by following a single
-    continuation (FR 2.3).
+    All connected operations are exported; sibling execution order is not
+    specified by topology. Keep the existing rule identifier for compatibility.
     """
     findings: list[ValidationWarning] = []
     for nid, node in graph.nodes.items():
@@ -547,11 +536,10 @@ def rule_composite_single_continuation(graph: DisassemblyGraph) -> list[Validati
         if len(onward) > 1:
             findings.append(ValidationWarning(
                 rule="composite_single_continuation",
-                severity=Severity.WARNING,
-                message=f"Component {nid} continues into {len(onward)} operations "
-                        f"{sorted(onward)}; a composite must be decomposed by a "
-                        f"single successive operation (extract one part, the rest "
-                        f"continues), not several in parallel.",
+                severity=Severity.INFO,
+                message=f"Component {nid} feeds {len(onward)} operations "
+                        f"{sorted(onward)}. All operations are included with this "
+                        f"component as input; sibling execution order is unspecified.",
                 node_ids=(nid, *sorted(onward)),
             ))
     return findings

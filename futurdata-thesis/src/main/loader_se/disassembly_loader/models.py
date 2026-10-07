@@ -302,9 +302,9 @@ class TraversalMode(str, Enum):
     How the linearizer treats a graph that violates the disassembly grammar
     (orthogonal to DepthSpec, which controls how DEEP to go).
 
-      STRICT  : follow only the grammatical continuation chain (a composite
-                continues into exactly one operation). Anomalous parallel
-                branches are not traversed; they are reported by validation.
+      STRICT  : follow every role-valid operation branch (a component may
+                feed multiple operations). Invalid edge types are reported
+                by validation; cycles are guarded during traversal.
                 This is the default and the only mode implemented for now.
       LENIENT : maximize coverage on a malformed graph by visiting all reachable
                 diamonds, even via non-grammatical parallel branches. Reserved
@@ -509,6 +509,7 @@ class Step:
     outputs: tuple[Component, ...] = ()
     continues_as: tuple[Component, ...] = ()
     tools_required: tuple[str, ...] = ()
+    image_path: Optional[str] = None
 
 
 @dataclass(frozen=True)

@@ -44,46 +44,16 @@ class TXTExporter:
         def collect(obj):
             if isinstance(obj, dict):
                 image = obj.get("image")
+                if isinstance(image, dict) and image.get("path") and not image.get("is_url", False):
+                    paths.add(image["path"])
+                for value in obj.values():
+                    if isinstance(value, (dict, list)):
+                        collect(value)
+            elif isinstance(obj, list):
+                for value in obj:
+                    collect(value)
 
-                if (
-                    isinstance(image, dict)
-                    and image.get("path")
-                    and not image.get("is_url", False)
-                ):
-                    paths.add(
-                        image["path"]
-                    )
-
-        # Product image
-        collect(
-            ir.get("product", {})
-        )
-
-        # Step images
-        for step in ir.get("steps", []):
-
-            for action in step.get(
-                "actions",
-                []
-            ):
-                collect(action)
-
-            for output in step.get(
-                "outputs",
-                []
-            ):
-                collect(output)
-
-            collect(
-                step.get("continues_as") or {}
-            )
-
-        # Bill of materials images
-        for part in ir.get(
-            "bill_of_materials",
-            []
-        ):
-            collect(part)
+        collect(ir)
 
         # Copy local images
         for relative_path in paths:
@@ -91,7 +61,7 @@ class TXTExporter:
             src = root / relative_path
             dst = out / relative_path
 
-            if src.exists():
+            if src.is_file() and src.resolve() != dst.resolve():
 
                 dst.parent.mkdir(
                     parents=True,

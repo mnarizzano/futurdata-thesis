@@ -28,7 +28,9 @@ class PresentationExportService:
         snapshot = self.diagram_exporter.serialize_active_diagram(diagram)
         with tempfile.TemporaryDirectory(prefix="ariadne_pptx_") as temp_dir:
             temp_root = Path(temp_dir)
-            self._stage_images(snapshot, temp_root)
+            from .image_staging import stage_images
+            stage_images(snapshot, temp_root, get_image_handler(),
+                         Path(diagram.file_path).parent if diagram.file_path else None)
             json_path = temp_root / "diagram.json"
             json_path.write_text(
                 json.dumps(snapshot, indent=2, ensure_ascii=False),
