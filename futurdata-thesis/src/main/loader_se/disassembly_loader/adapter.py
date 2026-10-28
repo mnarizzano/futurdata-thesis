@@ -296,8 +296,7 @@ def _build_node(shape: dict[str, Any]) -> GraphNode:
     weight = shape.get("weight")
     weight_str = None if weight is None or weight == "" else str(weight)
 
-    # Coordinates: keep as float when present (loader uses them to order
-    # sibling fan-outs); tolerate missing/None.
+    # Coordinates: retained as source data, never used for semantic ordering.
     x = _as_float(shape.get("x"))
     y = _as_float(shape.get("y"))
 

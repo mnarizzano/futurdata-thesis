@@ -14,7 +14,6 @@ from ..utils import (
     AddConnectionCommand, EditShapePropertiesCommand, MultiCommand, snap_to_grid,
     find_alignment_guides, DiagramSerializer
 )
-from ..utils.diagram_loader import DiagramLoader
 from ..utils.json_exporter import EnhancedJSONExporter
 from ..services.document_export_service import DocumentExportService
 from ..services.project_persistence import ProjectPersistence
@@ -24,7 +23,7 @@ from ..utils.image_handler import get_image_handler
 
 class AppController:
 
-    def __init__(self, repository=None, catalog=None, diagram_loader=None, json_exporter=None,
+    def __init__(self, repository=None, catalog=None, json_exporter=None,
                  archive_service=None, document_export_service=None, persistence_factory=ProjectPersistence, image_handler=None):
         """Initialize controller state, models and helper services."""
         self.diagram = Diagram()
@@ -32,7 +31,6 @@ class AppController:
         self.view = None
         self.repository = repository if repository is not None else get_repository()
         self.catalog = catalog if catalog is not None else CatalogController(self.repository)
-        self.diagram_loader = diagram_loader if diagram_loader is not None else DiagramLoader(self.repository)
         self.json_exporter = json_exporter if json_exporter is not None else EnhancedJSONExporter(self.repository)
         self.archive_service = archive_service if archive_service is not None else ProjectArchiveService(self.json_exporter)
         self.document_export_service = document_export_service if document_export_service is not None else DocumentExportService(self.json_exporter)
@@ -668,28 +666,6 @@ class AppController:
         self._update_view()
         self.view.set_status("New diagram created", FeedbackType.SUCCESS)
 
-    def open_diagram(self):
-        """Load a diagram from a JSON file chosen by the user."""
-        if not self.check_unsaved_changes():
-            return
-
-        file_path = self.view.ask_file_path(save=False)
-        if not file_path:
-            return
-
-        diagram = DiagramSerializer.load_from_file(file_path)
-        if diagram:
-            self._detach_imported_diagram(diagram)
-            self._reset_interaction()
-            self.diagram = diagram
-            self.command_history.clear()
-            # Update canvas scroll region to fit loaded shapes
-            self.view.canvas.update_scroll_region_from_shapes(self.diagram.shapes)
-            self._update_view()
-            self.view.set_status(f"Opened: {os.path.basename(file_path)}", FeedbackType.SUCCESS)
-        else:
-            self.view.show_error("Error", "Failed to open file")
-
     def save_diagram(self):
         """Save diagram to JSON storage only (no JSON sync)."""
         try:
@@ -966,52 +942,6 @@ class AppController:
 
         self._sync_navigator()
         self.view.update_ui_state()
-    
-    # ==================== NEW: PRODUCT LIST & LOAD ====================
-    
-    def delete_product(self, product_id: int) -> bool:
-        """Delete a saved product through the controller boundary."""
-        return self.repository.delete_product(product_id)
-
-    def show_product_list(self):
-        """Show product list dialog to load a saved diagram."""
-        self.view.show_product_list(self, self.load_product_diagram)
-    
-    def load_product_diagram(self, product_id: int):
-        """
-        Load complete diagram for a product from JSON storage.
-        
-        Args:
-            product_id: Root component ID to load
-        """
-        if not self.check_unsaved_changes():
-            return
-        
-        try:
-            # Load diagram from JSON storage
-            diagram = self.diagram_loader.load_product_diagram(product_id)
-            
-            if diagram:
-                self._reset_interaction()
-                self.diagram = diagram
-                self.current_product_id = product_id
-                self.command_history.clear()
-                
-                # Update canvas scroll region to fit loaded shapes
-                self.view.canvas.update_scroll_region_from_shapes(self.diagram.shapes)
-                self._update_view()
-                
-                # Get product info for status
-                product = self.repository.get_product(product_id)
-                product_name = product.get('name', 'Product') if product else 'Product'
-                self.view.set_status(f"Loaded: {product_name} (ID: {product_id})", FeedbackType.SUCCESS)
-            else:
-                self.view.show_error("Error", f"Failed to load product diagram (ID: {product_id})")
-                
-        except Exception as e:
-            self.view.show_error("Error", f"Failed to load diagram: {e}")
-            import traceback
-            traceback.print_exc()
     
     def export_diagram_enhanced(self):
         """Export a portable ZIP containing diagram.json and all referenced images."""

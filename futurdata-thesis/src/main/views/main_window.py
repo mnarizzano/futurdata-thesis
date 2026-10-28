@@ -56,8 +56,6 @@ class MainWindow:
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="New", accelerator="Ctrl+N", command=self.controller.new_diagram)
         file_menu.add_separator()
-        file_menu.add_command(label="Load Product...", accelerator="Ctrl+L", command=self.controller.show_product_list)
-        file_menu.add_separator()
         file_menu.add_command(label="Save", accelerator="Ctrl+S", command=self.controller.save_diagram)
         file_menu.add_separator()
         file_menu.add_command(label="Export Project ZIP...", command=self.controller.export_diagram_enhanced)
@@ -68,7 +66,7 @@ class MainWindow:
         export_menu.add_command(label="Markdown (.md)...", command=lambda: self.controller.export_document("md"))
         export_menu.add_command(label="Text (.txt)...", command=lambda: self.controller.export_document("txt"))
         export_menu.add_command(label="HTML/Web (.html)...", command=lambda: self.controller.export_document("html"))
-        file_menu.add_command(label="Import Project...", command=self.controller.import_diagram_enhanced)
+        file_menu.add_command(label="Load Project...", command=self.controller.import_diagram_enhanced)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_exit)
 
@@ -99,13 +97,12 @@ class MainWindow:
         Creates and positions the top toolbar for quick action access.
 
         Instantiates primary buttons for rapid diagrams interaction like New,
-        Load, Export, Undo, Redo, Delete and Clear operations.
+        Export, Undo, Redo, Delete and Clear operations.
         """
         toolbar = ttk.Frame(self.root, relief="raised", padding=5)
         toolbar.pack(side="top", fill="x")
 
         ttk.Button(toolbar, text="New", width=8, command=self.controller.new_diagram).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Load", width=8, command=self.controller.show_product_list).pack(side="left", padx=2)
         ttk.Button(toolbar, text="ZIP Export", width=10, command=self.controller.export_diagram_enhanced).pack(side="left", padx=2)
         ttk.Button(toolbar, text="PPTX Export", width=10, command=self.controller.export_presentation).pack(side="left", padx=2)
 
@@ -238,8 +235,6 @@ class MainWindow:
         and ensures interception protocols for OS close event requests.
         """
         self.root.bind('<Control-n>', lambda e: self.controller.new_diagram())
-        self.root.bind('<Control-l>', lambda e: self.controller.show_product_list())
-        self.root.bind('<Control-o>', lambda e: self.controller.open_diagram())
         self.root.bind('<Control-s>', lambda e: self.controller.save_diagram())
         self.root.bind('<Control-Shift-S>', lambda e: self.controller.save_diagram_as())
         self.root.bind('<Control-z>', lambda e: self.controller.undo())
@@ -470,7 +465,3 @@ class MainWindow:
         from .add_tool_dialog import AddToolDialog
         dialogs = {'color': AddColorDialog, 'material': AddMaterialDialog, 'tool': AddToolDialog}
         return dialogs[kind](self.root, controller).result
-
-    def show_product_list(self, controller, on_load):
-        from .product_list_dialog import ProductListDialog
-        ProductListDialog(self.root, controller, on_load)

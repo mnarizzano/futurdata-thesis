@@ -41,6 +41,7 @@ def build_ir_file(
     traversal: "TraversalMode" = TraversalMode.STRICT,
     include_bom: bool = False,
     indent: int = 2,
+    *, ordering: str = "bfs",
 ) -> None:
     """
     Run the full load pipeline and write the IR JSON to `out_path`.
@@ -50,6 +51,7 @@ def build_ir_file(
     model read-only; writes only to out_path (NFR 2.1).
     """
     guide = build_guide(
-        source_path, depth=depth, traversal=traversal, include_bom=include_bom
+        source_path, depth=depth, traversal=traversal, include_bom=include_bom,
+        ordering=ordering
     )
     write_json(guide, out_path, indent=indent)

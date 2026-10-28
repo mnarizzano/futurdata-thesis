@@ -12,7 +12,6 @@ from src.main.models import Diagram, ComponentBox, ActionCircle, DiamondStep, Ar
 from src.main.repositories.json_repository import JsonRepository
 from src.main.utils.commands import MoveShapeCommand
 from src.main.utils.feedback import FeedbackType
-from src.main.utils.serializer import DiagramSerializer
 from src.main.views.canvas_view import DiagramCanvas
 from src.main.views.main_window import MainWindow
 from src.main.views.properties_panel import PropertiesPanel
@@ -50,7 +49,7 @@ def edit_name(app, name="Edited"):
     assert app.diagram.modified
 
 
-@pytest.mark.parametrize("operation", ["new", "open", "load"])
+@pytest.mark.parametrize("operation", ["new", "import"])
 @pytest.mark.parametrize("answer", ["discard", "cancel", "save"])
 def test_confirmation_semantics_reopen_actual_storage(app, tmp_path, operation, answer):
     old_diagram = app.diagram
@@ -61,17 +60,11 @@ def test_confirmation_semantics_reopen_actual_storage(app, tmp_path, operation, 
     # A callback queued by an earlier version must be cancelled before prompting.
     app.auto_save_timer = "pending"
     app.view.ask_save_changes.return_value = answer
-    if operation == "open":
-        target = Diagram()
-        node = ComponentBox(100, 100)
-        node.properties.update(node_type="Root", name="Opened")
-        target.add_shape(node)
-        file = tmp_path / "open.json"
-        assert DiagramSerializer.save_to_file(target, str(file))
-        app.view.ask_file_path.return_value = str(file)
-        app.open_diagram()
-    elif operation == "load":
-        app.load_product_diagram(root_id)
+    if operation == "import":
+        # Cancel the file chooser after the save/discard prompt. The prompt
+        # must still save correctly, and choosing no file must preserve edits.
+        app.view.ask_file_path.return_value = ""
+        app.import_diagram_enhanced()
     else:
         app.new_diagram()
     app.view.root.after_cancel.assert_called_once_with("pending")
@@ -84,8 +77,10 @@ def test_confirmation_semantics_reopen_actual_storage(app, tmp_path, operation, 
         assert app.diagram.shapes[0].properties["name"] == "Edited"
         assert app.diagram.modified
         app.view.ask_file_path.assert_not_called()
-    else:
+    elif operation == "new" or answer == "save":
         assert not app.diagram.modified
+    else:
+        assert app.diagram is old_diagram and app.diagram.modified
 
 
 def test_failed_yes_save_aborts_new(app):

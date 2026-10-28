@@ -90,7 +90,6 @@ flowchart TD
     AC --> CC
     AC --> JR["JsonRepository"]
     CC --> JR
-    AC --> DL["DiagramLoader"]
     DL --> JR
     AC --> ZIP["ProjectArchiveService"]
     AC --> DOC["DocumentExportService"]
@@ -143,7 +142,7 @@ own Tkinter widgets or perform repository operations.
 | Connection | Logical directed relation with endpoint anchors. |
 | CommandHistory | Execute commands and maintain undo/redo stacks, default limit 100. |
 | JsonRepository | Manage catalogs, product records, relationships, IDs, and JSON writes. |
-| DiagramLoader | Rebuild a product diagram from repository records using generated positions. |
+| DiagramLoader | Internal utility for rebuilding diagrams from repository records; not exposed through the application UI. |
 | EnhancedJSONExporter | Serialize active diagrams and reconstruct supported JSON snapshots; retain legacy enhanced JSON export. |
 | DiagramSerializer | Legacy diagram file save/load support. |
 | ImageHandler | Copy, deduplicate, and resolve managed image files. |
@@ -254,12 +253,13 @@ They cannot be substituted for one another by renaming files.
 
 The main window combines a menu and toolbar, shape palette, scrollable canvas,
 properties panel, and status bar. Catalog dialogs provide colors, materials,
-and tools; the product list provides access to saved products.
+and tools. Manual repository diagram loading is not exposed in the interface.
 
-Current File commands include New, Load Product, Save, Export Project ZIP,
+Current File commands include New, Save, Export Project ZIP,
 Export Document, and Import Project. Export Document offers PowerPoint, Word,
-Markdown, Text, and HTML. Legacy open_diagram and save_diagram_as controller
-methods remain in the code and do not define the main ZIP workflow.
+Markdown, Text, and HTML. The legacy save_diagram_as controller method
+remains available independently of the main ZIP workflow. Load and Open
+keyboard shortcuts and the saved-product selection dialog have been removed.
 
 Editing events pass to AppController. Commands implement additions, removals,
 movement, connections, and property edits; MultiCommand groups operations.
@@ -283,7 +283,7 @@ differently; Save and Export must not be modeled as a universal transition to
 a fully persisted, unmodified state. Exporting a document does not save the
 product repository.
 
-## 6. Save and load workflows
+## 6. Persistence and internal restoration
 
 ### 6.1 Save
 
@@ -312,15 +312,13 @@ Editing can also update storage before Save. _persist_diagram catches and skips
 some per-shape and relationship failures; the success status is not proof that
 every invalid/disconnected element was stored.
 
-### 6.2 Load Product
+### 6.2 Internal restoration
 
-The controller checks unsaved changes, obtains the selected product ID, and
-calls DiagramLoader.load_product_diagram. The loader queries product,
-component, step, action, and relationship records, creates domain objects,
-assigns a generated layout, and reconstructs connections.
-
-Loading a product does not restore the original canvas coordinates from the
-repository. Export Project ZIP preserves those coordinates for later import.
+DiagramLoader remains an internal utility that queries product, component,
+step, action, and relationship records to reconstruct domain objects and a
+generated layout. It has no user-facing Load command, dialog, or controller
+callback. Project exchange uses Export Project ZIP and Import Project, which
+preserve the portable diagram's canvas coordinates.
 
 ## 7. Project exchange and conversion
 
@@ -452,7 +450,7 @@ and a GUI storage-location selector are outside the current implementation.
 | FR-05 | PropertiesPanel and ImageHandler | test_properties_panel.py and image/export integration checks |
 | FR-06 | CatalogController and catalog dialogs | Color/material/tool dialog tests and test_json_repository.py |
 | FR-07 | JsonRepository and controller persistence | test_json_repository.py, test_app_controller.py |
-| FR-08 | Product list and DiagramLoader | test_product_list_dialog.py, test_diagram_loader.py |
+| FR-08 | Internal restoration; no manual loading interface | test_diagram_loader.py, test_load_ui_removal.py |
 | FR-09 and FR-10 | ProjectArchiveService and JSON reconstruction | test_export_services.py, test_json_exporter.py, test_app_controller.py |
 | FR-11 and FR-12 | Document services, shared loader, format renderers | test_export_services.py, test_pptx_images.py |
 | FR-13 and FR-14 | Controller prompts and export error/status handling | test_app_controller.py, test_main_window.py, test_export_services.py |
@@ -474,7 +472,7 @@ workflow; updating this DRS does not establish that a new runtime test run
 has passed.
 
 Manual acceptance should create a connected product, attach images, save and
-load it, export/import a ZIP, and inspect all five document formats. Check
+export/import a ZIP, and inspect all five document formats. Check
 that externally referenced image folders accompany text/web documents.
 
 ## 10. Source references

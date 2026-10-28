@@ -168,19 +168,11 @@ class GraphNode:
     subclass while reading) with no benefit, because the loader dispatches on
     `type` anyway. Role-specific *meaning* is applied later, at the IR level.
 
-    WHY WE KEEP COORDINATES (x, y)
-    ------------------------------
-    The IR we hand to teammates does NOT carry coordinates — there the step
-    order is already resolved. But the loader *internally* needs them in one
-    real case: when a node fans out to several children that are siblings (e.g.
-    nespresso's action id=2 has 4 component children), the edges tell us "these
-    4 are children" but give no order among them. The only residual ordering
-    signal is geometry: left-to-right / top-to-bottom (x, then y). Observed in
-    nespresso: Water Tank x=100, Drip Tray x=300, Capsule Bin x=500, Main
-    Housing x=700 — ascending x yields the natural reading order. If we dropped
-    coordinates in the adapter (which runs BEFORE the loader), the loader could
-    no longer disambiguate. So coordinates live at the graph level and are
-    dropped only when building the IR.
+    COORDINATES (x, y)
+    ------------------
+    Retained to represent source data faithfully, but never used for semantic
+    ordering. Operation levels follow dependencies; sibling ties use persistent
+    node IDs. Coordinates are dropped when building the document IR.
 
     WHY THE `extra` DICT
     --------------------
@@ -196,10 +188,10 @@ class GraphNode:
       type        : the normalized NodeType.
       text        : the label/description shown to the operator. Treated as an
                     OPAQUE string — we never parse meaning out of it. (Confirmed
-                    empirically: ordering lives in topology/geometry, not in
+                    empirically: ordering lives in topology/identity, not in
                     label text.)
-      x, y        : canvas coordinates; loader-only, used to order sibling
-                    fan-outs. May be None if a source omits them.
+      x, y        : source canvas coordinates; never used to order operations.
+                    May be None if a source omits them.
       weight      : nominal weight as given by the source. Kept as the raw
                     string here (sources store it as a string, sometimes ""),
                     parsed to a number only at the IR level where it is needed,

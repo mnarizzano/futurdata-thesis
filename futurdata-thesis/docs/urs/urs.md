@@ -32,14 +32,14 @@ and images where the selected node supports those properties.
 
 | ID | Requirement |
 |---|---|
-| FR-01 | Create, edit, clear, and reopen disassembly diagrams. |
+| FR-01 | Create, edit, clear, and import disassembly diagrams. |
 | FR-02 | Add, select, move, duplicate, and delete diagram elements and connect them with directed relationships. |
 | FR-03 | Provide a properties panel, undo/redo, grid and snapping controls, scrolling, and zoom. |
 | FR-04 | Distinguish root, intermediate, and leaf components, steps, and detailed actions. |
 | FR-05 | Associate component details, action tools, descriptions, and local images with supported node types. |
 | FR-06 | Manage reusable color, material, and tool catalogs. |
 | FR-07 | Save product records and relationships in a local JSON repository without a database server. |
-| FR-08 | List saved products and reconstruct a selected product diagram for continued editing. |
+| FR-08 | Retain saved project records and internal restoration support without a manual Load interface. |
 | FR-09 | Export the active diagram as a ZIP containing diagram.json and available referenced images, including current canvas coordinates. |
 | FR-10 | Import a project ZIP or supported diagram JSON, rebuild shapes and connections, and synchronize the imported diagram with local storage. |
 | FR-11 | Export guides as PowerPoint, Word, Markdown, plain text, and HTML. |
@@ -72,8 +72,8 @@ turn a diagram snapshot into an ordered guide and then into the chosen format.
 
 Local storage is intended for a desktop workflow. It does not provide database
 transactions across a whole diagram save or coordinated multi-process editing.
-Load Product generates a layout from stored records; ZIP export is the route
-for retaining the active canvas coordinates. Import clears old entity IDs,
+ZIP export and Import Project retain the active canvas coordinates.
+Manual loading from repository records is not exposed in the interface. Import clears old entity IDs,
 but an existing root with the same name can be reused. ZIP files contain an
 active diagram, not a backup of all products and catalogs.
 
@@ -87,7 +87,7 @@ require corrections before it produces a useful ordered guide.
 1. Install requirements.txt and launch python run_app.py.
 2. Create a root, a disassembly step, an action, and an output component;
    connect them and enter their properties.
-3. Attach an image, save, and reopen the product using Load Product.
+3. Attach an image and save the product records to local storage.
 4. Export a project ZIP and confirm it contains diagram.json and the image.
 5. Import the ZIP and inspect the shapes, connections, coordinates, and image.
 6. Export each document format and inspect the resulting guide and image assets.

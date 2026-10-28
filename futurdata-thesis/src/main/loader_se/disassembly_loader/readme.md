@@ -160,4 +160,26 @@ python3 -m pytest                  # run all tests
 The `tests/` folder also contains two small demo scripts — `try.py` (prints a
 guide on screen) and `make_ir.py` (writes the output JSON to a file) — if you
 want to see the library work without writing code. What the suite covers is
-explained in [`TESTS.md`](TESTS.md). Make sure to have this folder and the test one in the same folder before running them. 
+explained in [`TESTS.md`](TESTS.md). Make sure to have this folder and the test one in the same folder before running them.
+
+### Document operation ordering
+
+`build_guide` and `build_ir_file` default to dependency-aware breadth-first
+operation levels. Every ready operation in a level is emitted before the next
+level, and converging paths wait for all reachable producers of their inputs.
+Each diamond remains one Step containing its complete instruction chain. Input
+images and output/remaining-assembly classification stay attached to that Step.
+All document formats consume this canonical order.
+
+Same-level ties use ascending persistent diamond IDs. The current graph model
+has no defined sequence metadata or semantic connection order; canvas coordinates
+and source array order do not affect execution order. Pass `ordering="dfs"`
+explicitly to retain the legacy branch-first ordering. `TraversalMode` still
+controls malformed-graph handling, independently of ordering.
+
+Only the selected root's role-valid reachable operations are included, matching
+the existing single-root contract. Disconnected and invalid connections remain
+validation findings. Rootless graphs produce no steps. Cycles cannot satisfy a
+legal dependency order; after ready operations are exhausted, the scheduler
+breaks the stall by the lowest remaining ID for deterministic best-effort output,
+with each reachable operation emitted once and existing cycle warnings retained.

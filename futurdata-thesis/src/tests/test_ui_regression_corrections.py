@@ -54,7 +54,7 @@ def test_palette_feedback_matches_created_node(app, label, model, message):
     assert view.canvas.cget("cursor") == ""
 
 
-@pytest.mark.parametrize("operation", ["new", "open", "load", "import"])
+@pytest.mark.parametrize("operation", ["new", "import"])
 def test_cancel_aborts_without_save_clear_or_success_status(app, operation):
     controller, view = app
     controller.add_shape("component_root")
@@ -66,7 +66,6 @@ def test_cancel_aborts_without_save_clear_or_success_status(app, operation):
     diagram = controller.diagram
     owner = diagram.diagram_id
     nodes = list(diagram.shapes)
-    product = controller.current_product_id
     history = list(controller.command_history.history)
     before = controller.repository.file_path.read_bytes()
     # Reproduce a previous New success remaining on screen before Cancel.
@@ -75,8 +74,7 @@ def test_cancel_aborts_without_save_clear_or_success_status(app, operation):
          patch.object(controller, "save_diagram", wraps=controller.save_diagram) as save, \
          patch.object(diagram, "clear", wraps=diagram.clear) as clear, \
          patch.object(view, "ask_file_path") as choose:
-        {"new": controller.new_diagram, "open": controller.open_diagram,
-         "load": lambda: controller.load_product_diagram(product),
+        {"new": controller.new_diagram,
          "import": controller.import_diagram_enhanced}[operation]()
         save.assert_not_called()
         clear.assert_not_called()

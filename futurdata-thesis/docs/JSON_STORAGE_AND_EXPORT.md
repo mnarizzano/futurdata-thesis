@@ -70,10 +70,10 @@ diagram save performs several writes and is not one transaction. The persistence
 loop can skip individual failures, so a Save status alone does not establish
 that every invalid or disconnected node was stored.
 
-File > Load Product reconstructs shapes and connections from stored records.
-It calculates a new layout rather than restoring the canvas x/y positions.
-Use a project ZIP when you need the active diagram's positions for sharing or
-later import.
+The application does not expose manual loading of saved repository diagrams.
+Use Export Project ZIP and Import Project to exchange the active diagram and
+retain its canvas positions. Internal repository restoration utilities remain
+available independently of the user interface.
 
 For a full local backup, close the app and copy the entire
 ~/.disassembly_diagram folder, including images. Avoid editing the repository
@@ -85,7 +85,7 @@ coordinated.
 
 | Representation | Contents | Consumer |
 |---|---|---|
-| Local repository | Products, catalogs, records, relationships, counters | JsonRepository and Load Product |
+| Local repository | Products, catalogs, records, relationships, counters | JsonRepository and internal persistence utilities |
 | Portable diagram | metadata, diagram settings, shapes, connections | ZIP import and document conversion |
 | Guide IR (intermediate representation) | Product, ordered steps, tools, warnings, depth, bill of materials | Document renderers |
 

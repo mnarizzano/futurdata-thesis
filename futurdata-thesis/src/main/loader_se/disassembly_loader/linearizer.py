@@ -18,19 +18,15 @@ THE GRAMMAR THIS ENCODES (confirmed empirically on Bialetti / Maria / Epson):
     ordered by stable node identity — the only ordering signal available.
   - Every diamond is reachable from the single root by following continuations.
 
-TRAVERSAL ORDER: depth-first (DFS), one branch fully before the next. A
-disassembly guide is executed one sub-system at a time, so DFS reads naturally;
-breadth-first would interleave unrelated sub-systems step by step. (The URS says
-"BFS with limited depth"; that phrase concerns the depth-CUT concept — stopping
-at a level — not the order in which finished steps are listed. Depth is the
-number of nested operations from the root, which we track with a counter
-regardless of visitation order; we list steps branch-by-branch for readability.)
+TRAVERSAL ORDER: dependency-aware breadth-first operation levels by default.
+All ready operations at one level precede the next level. Components and actions
+are not separate exported steps. Sibling ties use persistent node IDs: neither
+sequence metadata nor semantic connection ordering is currently defined.
+Explicit ordering="dfs" retains the legacy branch-first traversal.
 
-IMPLEMENTATION: an explicit stack, not recursion. This matches the cycle
-detector in validation.py (one traversal technique across the package) and
-cannot hit Python's recursion limit on a very deep model — the "survives the
-course / reused by a later group" requirement makes deep inputs a real future
-case, not a hypothetical. The cost is small and well-understood for a DFS.
+IMPLEMENTATION: iterative discovery and scheduling, without canvas dependencies
+or mutations of the source graph. Cycles retain deterministic best-effort output
+when dependencies cannot be satisfied; validation reports malformed graphs.
 
 NON-BLOCKING: like validation, linearization never raises on a malformed graph.
 A cycle is broken by a visited-set; a missing piece yields a best-effort step.
@@ -38,6 +34,9 @@ The user may always proceed (FR 2.3).
 """
 
 from __future__ import annotations
+
+from collections import deque
+from dataclasses import replace
 
 from .models import (
     Action,
@@ -56,6 +55,7 @@ def linearize(
     graph: DisassemblyGraph,
     depth: DepthSpec,
     traversal: TraversalMode = TraversalMode.STRICT,
+    *, ordering: str = "bfs",
 ) -> tuple[Step, ...]:
     """
     Produce the ordered tuple of Steps for the given graph and depth choice.
@@ -77,6 +77,11 @@ def linearize(
             "unimplemented deliberately to avoid an untested second traversal "
             "until a real use case requires it."
         )
+
+    if ordering not in {"bfs", "dfs"}:
+        raise ValueError("ordering must be 'bfs' or 'dfs'")
+    if ordering == "bfs":
+        return _breadth_first(graph, depth)
 
     root = find_root(graph)
     if root is None:
@@ -118,6 +123,55 @@ def linearize(
             stack.append((next_diamond, depth_level + 1, next_source))
 
     return tuple(steps)
+
+
+def _breadth_first(graph: DisassemblyGraph, depth: DepthSpec) -> tuple[Step, ...]:
+    """Discover role-valid operations, then schedule prerequisite-complete levels.
+
+    A shared input remains the same assembly for every consumer. At convergence,
+    all reachable producers and all component inputs are prerequisites. Disconnected
+    nodes remain excluded, matching the loader's single-root contract. Cycles have
+    no legal topological order: after ready levels are exhausted, break a stalled
+    dependency deterministically to retain the existing non-blocking behavior.
+    """
+    root = find_root(graph)
+    if root is None:
+        return ()
+    pending = deque((d, 0, root) for d in _ordered_next_diamonds(graph, root))
+    operations = {}
+    while pending:
+        diamond, level, source = pending.popleft()
+        if diamond in operations:
+            continue
+        step, children = _build_step(graph, diamond, source, 0, depth, level)
+        operations[diamond] = step
+        pending.extend((child, level + 1, comp) for child, comp in children)
+
+    producers: dict[int, set[int]] = {}
+    for diamond, step in operations.items():
+        for component in (*step.outputs, *step.continues_as):
+            producers.setdefault(component.node_id, set()).add(diamond)
+    prerequisites = {}
+    for diamond in operations:
+        inputs = [comp for comp in graph.inc_adj.get(diamond, ())
+                  if comp in graph.nodes and graph.nodes[comp].type is NodeType.COMPONENT]
+        prerequisites[diamond] = {producer for comp in inputs if comp != root
+                                  for producer in producers.get(comp, ())}
+
+    remaining = set(operations)
+    completed: set[int] = set()
+    result = []
+    while remaining:
+        ready = sorted(d for d in remaining if prerequisites[d] <= completed)
+        if not ready:
+            # Only malformed cyclic dependencies can stall a reachable graph.
+            ready = [min(remaining)]
+        # Complete the whole level before making its outputs available.
+        for diamond in ready:
+            result.append(replace(operations[diamond], index=len(result) + 1))
+        completed.update(ready)
+        remaining.difference_update(ready)
+    return tuple(result)
 
 
 # =============================================================================
@@ -320,7 +374,7 @@ def _collect_action_chain(graph: DisassemblyGraph, diamond_id: int) -> list[Acti
     actions: list[Action] = []
     seen: set[int] = set()
     # Stack-based DFS over action edges. Push heads reversed so the first by
-    # geometry is processed first (LIFO), keeping reading order.
+    # identity is processed first (LIFO), keeping reading order.
     stack: list[int] = list(reversed(heads))
     while stack:
         current = stack.pop()

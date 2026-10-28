@@ -44,6 +44,7 @@ def build_guide(
     depth: DepthSpec | None = None,
     traversal: TraversalMode = TraversalMode.STRICT,
     include_bom: bool = False,
+    *, ordering: str = "bfs",
 ) -> Guide:
     """
     Run the full load pipeline on a Builder JSON file and return the Guide.
@@ -52,6 +53,7 @@ def build_guide(
       source_path : path to the Builder JSON model (read-only; NFR 2.1).
       depth       : the disassembly depth (FR 3.0). Defaults to full disassembly.
       traversal   : STRICT (default) or LENIENT (reserved; raises NotImplemented).
+      ordering    : dependency-aware "bfs" (default), or legacy "dfs".
       include_bom : if True, compute the leaf-only bill of materials; otherwise
                     the Guide's bill_of_materials stays None (the field is always
                     present in the JSON, as null or a list — never omitted).
@@ -64,7 +66,7 @@ def build_guide(
 
     graph = normalize_file(source_path)
     warnings = validation.validate(graph)
-    steps = linearizer.linearize(graph, depth, traversal)
+    steps = linearizer.linearize(graph, depth, traversal, ordering=ordering)
 
     product = _build_product(graph)
     bom = _build_bill_of_materials(steps) if include_bom else None
