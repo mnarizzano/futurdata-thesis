@@ -1,7 +1,7 @@
 """Existing editor connection rules, callable without a GUI.
 
-Class names reflect legacy storage terminology. Do not tighten this permissive
-validator during an architectural refactor; import/export grammar is separate.
+Class names reflect legacy storage terminology. Circles cannot connect directly
+to any Component type in either direction; import/export grammar is separate.
 """
 from ..models import ComponentBox, ActionCircle, DiamondStep
 
@@ -13,6 +13,12 @@ def connection_error(source, target):
             "Use:  Component \u2192 Diamond (operation) \u2192 Step (instruction).\n\n"
             "The connection was not created.",
             "Invalid connection: Component \u2192 Action is not allowed.")
+    if isinstance(source, ActionCircle) and isinstance(target, ComponentBox):
+        return (
+            "A Step (circle) cannot connect directly to any Component.\n\n"
+            "This applies to Root, Leaf, and Intermediate / Composite Components.\n\n"
+            "The connection was not created.",
+            "Invalid connection: Step (circle) -> Component is not allowed.")
     if isinstance(source, DiamondStep) and isinstance(target, DiamondStep):
         return (
             "A Diamond cannot connect directly to another Diamond.\n\n"
