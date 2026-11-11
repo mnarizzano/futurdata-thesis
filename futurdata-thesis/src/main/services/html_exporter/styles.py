@@ -36,4 +36,24 @@ def get_styles() -> str:
 .tool-chip,.grade-badge,.destination{max-width:100%;white-space:normal}
 .part-card{overflow:visible}
 .summary-table{table-layout:fixed}
+
+/* Missing assembly images collapse to a heading above full-width instructions. */
+.assembly-heading{font-size:16px;font-weight:400;color:var(--muted);margin:2px 0 12px;line-height:1.5}
+.assembly-heading strong{color:var(--text)}
+.step-layout{align-items:stretch}
+.step-layout:not(.no-assembly-image) .image-panel{display:flex;flex-direction:column}
+.step-layout:not(.no-assembly-image) #imageBox{flex:1;min-height:300px;position:relative}
+.step-layout:not(.no-assembly-image) .main-image{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+@media(max-width:900px){.step-layout:not(.no-assembly-image) #imageBox{min-height:330px}}
+@media(max-width:560px){.step-layout:not(.no-assembly-image) #imageBox{min-height:260px}}
+.step-layout.no-assembly-image{grid-template-columns:minmax(0,1fr);gap:12px}
+.no-assembly-image .image-panel{padding:0;background:none;border:0}
+.no-assembly-image .assembly-heading{margin:0}
+.no-assembly-image #imageBox{display:none}
+.parts-grid{align-items:stretch}
+.part-card{display:flex;flex-direction:column;min-width:0}
+.part-card>.part-img{flex-shrink:0;border-radius:15px 15px 0 0}
+.part-no-image{display:grid;place-items:center;color:#59616b;cursor:default}
+.part-card .part-body{display:flex;flex-direction:column;flex:1}
+.part-card .grade-row{margin-top:auto;padding-top:14px}
 '''

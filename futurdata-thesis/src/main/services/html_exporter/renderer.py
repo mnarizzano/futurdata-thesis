@@ -34,8 +34,8 @@ def render_main_content() -> str:
     <h2 id="stepOperation"></h2>
     <div id="toolsBox"></div>
 
-    <section class="step-layout">
-      <div class="image-panel"><div id="imageBox"></div></div>
+    <section class="step-layout" id="stepLayout">
+      <div class="image-panel" id="assemblyPanel"><h3 class="assembly-heading">Starting assembly: <strong id="startingAssembly"></strong></h3><div id="imageBox"></div></div>
       <div class="instructions-panel">
         <h3>Instructions</h3>
         <div id="actionsList"></div>

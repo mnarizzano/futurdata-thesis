@@ -714,3 +714,29 @@ class CatalogHelperTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CircleComponentConnectionTests(unittest.TestCase):
+    def test_all_component_types_rejected_in_both_directions(self):
+        for node_type in ('Root', 'Leaf', 'Intermediate', 'Composite', ''):
+            for method in ('_create_connection', '_create_arrow_connection'):
+                for reverse in (False, True):
+                    with self.subTest(node_type=node_type, method=method, reverse=reverse):
+                        controller = make_controller()
+                        component = ComponentBox(100, 100)
+                        component.node_type = node_type
+                        circle = ActionCircle(300, 100)
+                        controller.diagram.shapes = [component, circle]
+                        source, target = (component, circle) if reverse else (circle, component)
+                        self.assertFalse(getattr(controller, method)(source, target))
+                        self.assertEqual(controller.diagram.connections, [])
+                        self.assertEqual(controller.diagram.shapes, [component, circle])
+                        self.assertFalse(controller.can_undo())
+                        controller.view.show_workflow_error.assert_called_once()
+
+    def test_circle_can_still_connect_to_circle_and_diamond(self):
+        from src.main.services.workflow_validation import connection_error
+        circle = ActionCircle(100, 100)
+        for target in (ActionCircle(300, 100), DiamondStep(300, 100)):
+            self.assertIsNone(connection_error(circle, target))
+            self.assertIsNone(connection_error(target, circle))
